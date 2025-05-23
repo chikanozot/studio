@@ -2,7 +2,7 @@
 "use client";
 
 import type { FC } from 'react';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import type { CalculationResults, CalculationResultItem, WashbasinItem as WashbasinItemType } from '@/types';
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -14,7 +14,7 @@ import WashbasinItem from './WashbasinItem';
 import NumberInputStepper from '../shared/NumberInputStepper';
 
 const SCULPTED_SINK_LABOR_COST = 400;
-const SCULPTED_SINK_MATERIAL_METERS = 0.5;
+const SCULPTED_SINK_MATERIAL_METERS = 0.5; // This is now a factor, not a direct linear meterage of stone
 const BUILT_IN_SINK_COST = 130;
 const WALL_SUPPORT_PRICE = 70;
 
@@ -34,13 +34,13 @@ const defaultWashbasinItem: () => WashbasinItemType = () => ({
 
 const WashbasinForm: FC = () => {
   const [washbasinItems, setWashbasinItems] = useState<WashbasinItemType[]>([defaultWashbasinItem()]);
-  const [stonePrice, setStonePrice] = useState<number | null>(null);
+  const [stonePrice, setStonePrice] = useState<number | null>(null); // Unified stone price
 
   const [globalFinishPriceOption, setGlobalFinishPriceOption] = useState<string>("80");
   const [customGlobalFinishPrice, setCustomGlobalFinishPrice] = useState<number | null>(null);
 
   const [results, setResults] = useState<CalculationResults | null>(null);
-
+  
   const derivedGlobalFinishPrice = useMemo(() => {
     if (globalFinishPriceOption === 'other') {
       return customGlobalFinishPrice === null ? 0 : customGlobalFinishPrice;
@@ -68,7 +68,7 @@ const WashbasinForm: FC = () => {
     setWashbasinItems(prev => {
       const newItems = prev.filter(item => item.id !== id);
       if (newItems.length === 0) {
-        return [defaultWashbasinItem()];
+        return [defaultWashbasinItem()]; // Always keep at least one item
       }
       return newItems;
     });
@@ -83,13 +83,8 @@ const WashbasinForm: FC = () => {
               item.finishedSides.length > 0 || item.hasWallSupport
     );
 
-    if (washbasinItems.length === 0 && !isAnyItemConfigured) {
+    if (washbasinItems.length === 0 || !isAnyItemConfigured) {
       alert('Adicione e configure pelo menos um lavatório para calcular o orçamento.');
-      setResults(null);
-      return;
-    }
-     if (washbasinItems.length > 0 && !isAnyItemConfigured && washbasinItems.every(item => item.length === null && item.width === null && item.skirtHeight === null && item.topMoldingWidth === null && item.bottomMoldingWidth === null && item.finishedSides.length === 0 && !item.hasWallSupport)) {
-      alert('Configure pelo menos um item de lavatório para calcular.');
       setResults(null);
       return;
     }
@@ -107,12 +102,11 @@ const WashbasinForm: FC = () => {
         return;
     }
 
-
     const allResultItems: CalculationResultItem[] = [];
     let grandTotalCost = 0;
 
     washbasinItems.forEach((item, index) => {
-      const currentItemResultItems: CalculationResultItem[] = [];
+      const currentItemDetailedCosts: CalculationResultItem[] = [];
       let itemTotalCost = 0;
 
       const itemLength = item.length === null ? 0 : item.length;
@@ -125,83 +119,77 @@ const WashbasinForm: FC = () => {
       const widthM = itemWidth / 100;
       const currentItemFinishPrice = derivedGlobalFinishPrice;
 
-
-      const itemLabelPrefix = `Lavatório ${index + 1}`;
       let itemTypeDescription = '';
       switch (item.calculationType) {
         case 'sem_cuba': itemTypeDescription = 'Sem Cuba'; break;
         case 'cuba_esculpida': itemTypeDescription = 'Cuba Esculpida'; break;
         case 'cuba_embutida': itemTypeDescription = 'Cuba Embutida'; break;
       }
-      // Summary type information is implicitly included in the itemized cost labels below
-
+      const itemLabelPrefix = `Lavatório ${index + 1} (${itemTypeDescription})`;
 
       // Bancada Cost
       if (item.calculationType === 'sem_cuba') {
         if (lengthM > 0 && widthM > 0) {
             const countertopArea = lengthM * widthM;
-            const countertopStoneCost = countertopArea * currentStonePriceVal;
-            currentItemResultItems.push({ label: 'Pedra (Bancada)', value: countertopStoneCost, details: `${countertopArea.toFixed(3)}m² (R$ ${currentStonePriceVal.toFixed(2)}/m²)` });
+            const countertopStoneCost = countertopArea * currentStonePriceVal; // Use M2 price
+            currentItemDetailedCosts.push({ label: 'Pedra (Bancada)', value: countertopStoneCost, details: `${countertopArea.toFixed(3)}m² (R$ ${currentStonePriceVal.toFixed(2)}/m²)` });
             itemTotalCost += countertopStoneCost;
         }
       } else { // Cuba Esculpida ou Embutida (cálculo linear para bancada)
         if (lengthM > 0) {
-            const countertopLinearCost = lengthM * currentStonePriceVal;
-            currentItemResultItems.push({ label: 'Pedra (Bancada)', value: countertopLinearCost, details: `${lengthM.toFixed(2)}m linear (R$ ${currentStonePriceVal.toFixed(2)}/m linear)` });
+            const countertopLinearCost = lengthM * currentStonePriceVal; // Use Linear price (which is the same as M2 for this logic)
+            currentItemDetailedCosts.push({ label: 'Pedra (Bancada)', value: countertopLinearCost, details: `${lengthM.toFixed(2)}m linear (R$ ${currentStonePriceVal.toFixed(2)}/m linear)` });
             itemTotalCost += countertopLinearCost;
         }
 
         if (item.calculationType === 'cuba_esculpida') {
-          currentItemResultItems.push({ label: 'Mão de Obra Cuba Esculpida', value: SCULPTED_SINK_LABOR_COST });
+          currentItemDetailedCosts.push({ label: 'Mão de Obra Cuba Esculpida', value: SCULPTED_SINK_LABOR_COST });
           itemTotalCost += SCULPTED_SINK_LABOR_COST;
 
+          // Material adicional da cuba esculpida é 0.5 * VALOR DA PEDRA (que é R$/m² ou R$/m linear, interpretado como por unidade de pedra)
           const sinkMaterialCost = SCULPTED_SINK_MATERIAL_METERS * currentStonePriceVal;
-          currentItemResultItems.push({ label: 'Material Adicional Cuba Esculpida', value: sinkMaterialCost, details: `${SCULPTED_SINK_MATERIAL_METERS} x Preço Base da Pedra (R$ ${currentStonePriceVal.toFixed(2)})` });
+          currentItemDetailedCosts.push({ label: 'Material Adicional Cuba Esculpida', value: sinkMaterialCost, details: `${SCULPTED_SINK_MATERIAL_METERS} x Preço Base da Pedra (R$ ${currentStonePriceVal.toFixed(2)})` });
           itemTotalCost += sinkMaterialCost;
 
         } else { // 'cuba_embutida'
-          currentItemResultItems.push({ label: 'Cuba Embutida (Peça)', value: BUILT_IN_SINK_COST });
+          currentItemDetailedCosts.push({ label: 'Cuba Embutida (Peça)', value: BUILT_IN_SINK_COST });
           itemTotalCost += BUILT_IN_SINK_COST;
         }
       }
 
       // Acabamento da Bancada (todos os tipos)
       let totalFinishLengthMeters = 0;
-      const finishedSidesSummary: string[] = [];
       item.finishedSides.forEach(side => {
         const sideLength = (side === 'top' || side === 'bottom') ? itemLength : itemWidth;
         if (sideLength > 0) {
           totalFinishLengthMeters += sideLength / 100;
-          finishedSidesSummary.push(`${sideLength}cm (${side})`);
         }
       });
 
       if (totalFinishLengthMeters > 0 && currentItemFinishPrice > 0) {
         const currentFinishCost = totalFinishLengthMeters * currentItemFinishPrice;
-        currentItemResultItems.push({ label: 'Acabamento da Bancada', value: currentFinishCost, details: `${totalFinishLengthMeters.toFixed(2)}m linear (R$ ${currentItemFinishPrice.toFixed(2)}/m)` });
+        currentItemDetailedCosts.push({ label: 'Acabamento da Bancada', value: currentFinishCost, details: `${totalFinishLengthMeters.toFixed(2)}m linear (R$ ${currentItemFinishPrice.toFixed(2)}/m)` });
         itemTotalCost += currentFinishCost;
       } else if (totalFinishLengthMeters > 0 && currentItemFinishPrice <= 0 ) {
          alert(`Para o ${itemLabelPrefix}, informe o valor do acabamento da bancada (Config. Globais), pois há lados selecionados.`);
          setResults(null); return;
       }
 
-
       // Saia (todos os tipos) - calculada por m² usando currentStonePriceVal
       if (itemSkirtHeight > 0) {
         let skirtBaseLengthMeters = 0;
-        if (totalFinishLengthMeters > 0) {
+        if (totalFinishLengthMeters > 0) { // Use finished sides if available
             skirtBaseLengthMeters = totalFinishLengthMeters;
-        } else if (lengthM > 0 || widthM > 0) {
-            if (lengthM > 0 && widthM > 0) skirtBaseLengthMeters = 2 * (lengthM + widthM);
-            else if (lengthM > 0) skirtBaseLengthMeters = 2 * lengthM;
-            else if (widthM > 0) skirtBaseLengthMeters = 2 * widthM;
+        } else if (lengthM > 0 || widthM > 0) { // Fallback to perimeter if no finished sides, but dimensions exist
+            if (lengthM > 0 && widthM > 0) skirtBaseLengthMeters = 2 * (lengthM + widthM); // Full perimeter
+            else if (lengthM > 0) skirtBaseLengthMeters = 2 * lengthM; // Assume front and back if only length
+            else if (widthM > 0) skirtBaseLengthMeters = 2 * widthM; // Assume two sides if only width
         }
-
 
         if (skirtBaseLengthMeters > 0) {
           const skirtArea = (itemSkirtHeight / 100) * skirtBaseLengthMeters;
-          const currentSkirtCost = skirtArea * currentStonePriceVal;
-          currentItemResultItems.push({ label: 'Saia', value: currentSkirtCost, details: `${itemSkirtHeight}cm altura, ${skirtBaseLengthMeters.toFixed(2)}m comp., ${skirtArea.toFixed(3)}m² (R$ ${currentStonePriceVal.toFixed(2)}/m²)` });
+          const currentSkirtCost = skirtArea * currentStonePriceVal; // Use M2 price
+          currentItemDetailedCosts.push({ label: 'Saia', value: currentSkirtCost, details: `${itemSkirtHeight}cm altura, ${skirtBaseLengthMeters.toFixed(2)}m comp., ${skirtArea.toFixed(3)}m² (R$ ${currentStonePriceVal.toFixed(2)}/m²)` });
           itemTotalCost += currentSkirtCost;
         } else if (itemSkirtHeight > 0) {
              alert(`Para o ${itemLabelPrefix}, com saia de ${itemSkirtHeight}cm, defina dimensões da bancada ou selecione lados com acabamento para basear o comprimento da saia.`);
@@ -230,7 +218,7 @@ const WashbasinForm: FC = () => {
       const moldingDetailsParts: string[] = [];
       if (itemTopMoldingWidth > 0 && topMoldingLengthForCalc > 0) {
         const topMoldingArea = (itemTopMoldingWidth / 100) * topMoldingLengthForCalc;
-        const topMoldingCost = topMoldingArea * currentStonePriceVal;
+        const topMoldingCost = topMoldingArea * currentStonePriceVal; // Use M2 price
         itemMoldingCost += topMoldingCost;
         moldingDetailsParts.push(`Superior ${itemTopMoldingWidth}cm (${topMoldingLengthForCalc.toFixed(2)}m s/ acab. bancada, ${topMoldingArea.toFixed(3)}m² a R$ ${currentStonePriceVal.toFixed(2)}/m²)`);
       } else if (itemTopMoldingWidth > 0 && topMoldingLengthForCalc === 0 && (itemLength > 0 || itemWidth > 0) && item.finishedSides.length === allPossibleSides.filter(s => ((s === 'top' || s === 'bottom') ? itemLength : itemWidth) > 0).length ) {
@@ -238,11 +226,10 @@ const WashbasinForm: FC = () => {
           setResults(null); return;
       }
 
-
       if (itemBottomMoldingWidth > 0 && bottomMoldingLengthForCalc > 0) {
         const bottomMoldingArea = (itemBottomMoldingWidth / 100) * bottomMoldingLengthForCalc;
-        const bottomMoldingBaseCost = bottomMoldingArea * currentStonePriceVal;
-        const bottomMoldingFinalCost = bottomMoldingBaseCost * 1.30;
+        const bottomMoldingBaseCost = bottomMoldingArea * currentStonePriceVal; // Use M2 price
+        const bottomMoldingFinalCost = bottomMoldingBaseCost * 1.30; // 30% surcharge
         itemMoldingCost += bottomMoldingFinalCost;
         moldingDetailsParts.push(`Inferior ${itemBottomMoldingWidth}cm (${bottomMoldingLengthForCalc.toFixed(2)}m c/ acab. bancada, ${bottomMoldingArea.toFixed(3)}m² a R$ ${currentStonePriceVal.toFixed(2)}/m², acréscimo 30%)`);
       } else if (itemBottomMoldingWidth > 0 && bottomMoldingLengthForCalc === 0 && (itemLength > 0 || itemWidth > 0) && item.finishedSides.length === 0 && allPossibleSides.some(s => ((s === 'top' || s === 'bottom') ? itemLength : itemWidth) > 0)) {
@@ -250,20 +237,30 @@ const WashbasinForm: FC = () => {
           setResults(null); return;
       }
 
-
       if (itemMoldingCost > 0) {
-        currentItemResultItems.push({ label: 'Rodapés', value: itemMoldingCost, details: moldingDetailsParts.join('; ') });
+        currentItemDetailedCosts.push({ label: 'Rodapés', value: itemMoldingCost, details: moldingDetailsParts.join('; ') });
         itemTotalCost += itemMoldingCost;
       }
 
       let currentWallSupportCost = 0;
       if (item.hasWallSupport) {
         currentWallSupportCost = WALL_SUPPORT_PRICE;
-        currentItemResultItems.push({ label: 'Suporte de Parede', value: currentWallSupportCost, details: `R$ ${WALL_SUPPORT_PRICE.toFixed(2)}` });
+        currentItemDetailedCosts.push({ label: 'Suporte de Parede', value: currentWallSupportCost, details: `R$ ${WALL_SUPPORT_PRICE.toFixed(2)}` });
         itemTotalCost += currentWallSupportCost;
       }
-
-      allResultItems.push(...currentItemResultItems.map(res => ({ ...res, label: `${itemLabelPrefix} (${itemTypeDescription}): ${res.label}` })));
+      
+      // Add detailed costs for the current item, prefixed
+      allResultItems.push(...currentItemDetailedCosts.map(res => ({ ...res, label: `${itemLabelPrefix}: ${res.label}` })));
+      
+      // Add subtotal for the current item if it has a cost
+      if (itemTotalCost > 0 || isAnyItemConfigured) { // Show subtotal even if 0 but configured
+          allResultItems.push({
+            label: `Subtotal ${itemLabelPrefix}`,
+            value: itemTotalCost,
+            isTotal: false, // Not the grand total
+            details: `Custo total para este lavatório`
+          });
+      }
 
       grandTotalCost += itemTotalCost;
     });
@@ -272,7 +269,7 @@ const WashbasinForm: FC = () => {
       allResultItems.push({ label: 'Total Geral', value: grandTotalCost, isTotal: true });
     }
 
-    setResults({ items: allResultItems, summary: undefined });
+    setResults({ items: allResultItems, summary: undefined }); // Summary is not used for washbasins
   };
 
   return (
@@ -284,7 +281,7 @@ const WashbasinForm: FC = () => {
               <CardTitle className="text-xl text-primary">Itens do Lavatório</CardTitle>
             </CardHeader>
             <CardContent>
-              <div id="washbasin-items-container" className="space-y-3 max-h-[calc(100vh-450px)] md:max-h-[calc(100vh-380px)] overflow-y-auto pr-2">
+              <div id="washbasin-items-container" className="space-y-3 max-h-[calc(100vh-450px)] md:max-h-[calc(100vh-400px)] overflow-y-auto pr-2">
                 {washbasinItems.length === 0 && <p className="text-sm text-muted-foreground">Nenhum lavatório adicionado. Clique em "Adicionar Lavatório" para começar.</p>}
                 {washbasinItems.map((item, index) => (
                   <WashbasinItem
