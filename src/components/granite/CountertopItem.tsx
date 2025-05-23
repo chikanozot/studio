@@ -1,10 +1,13 @@
+
 "use client";
 
 import type { FC } from 'react';
 import type { Countertop } from '@/types';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Trash2 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { Trash2, GripVertical } from "lucide-react";
 import NumberInputStepper from "@/components/shared/NumberInputStepper";
 import { cn } from '@/lib/utils';
 
@@ -51,11 +54,17 @@ const CountertopItem: FC<CountertopItemProps> = ({ countertop, index, onUpdate, 
     onUpdate(countertop.id, { finishedSides: newFinishedSides });
   };
 
+  const handleWallSupportChange = (checked: boolean) => {
+    onUpdate(countertop.id, { hasWallSupport: checked });
+  };
+
   return (
     <Card className="mb-4 bg-secondary/30 shadow-sm fade-in-animation">
       <CardHeader className="py-3 px-4">
         <div className="flex justify-between items-center">
-          <CardTitle className="text-lg font-medium text-primary">Balcão {index + 1}</CardTitle>
+          <CardTitle className="text-lg font-medium text-primary">
+            <GripVertical className="inline h-4 w-4 mr-1 text-muted-foreground" /> Balcão {index + 1}
+          </CardTitle>
           <Button variant="ghost" size="icon" onClick={() => onRemove(countertop.id)} className="text-destructive hover:text-destructive/80">
             <Trash2 className="h-4 w-4" />
             <span className="sr-only">Remover Balcão</span>
@@ -127,6 +136,16 @@ const CountertopItem: FC<CountertopItemProps> = ({ countertop, index, onUpdate, 
               <div />
             </div>
           </div>
+        </div>
+        <div className="flex items-center space-x-2 pt-2">
+          <Checkbox
+            id={`countertop-${countertop.id}-wall-support`}
+            checked={!!countertop.hasWallSupport}
+            onCheckedChange={handleWallSupportChange}
+          />
+          <Label htmlFor={`countertop-${countertop.id}-wall-support`} className="text-sm font-medium text-foreground">
+            Incluir suporte de parede (R$ 70,00)
+          </Label>
         </div>
       </CardContent>
     </Card>

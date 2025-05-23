@@ -4,6 +4,7 @@ export interface Countertop {
   length: number;
   width: number;
   finishedSides: ('top' | 'bottom' | 'left' | 'right')[];
+  hasWallSupport?: boolean; // Added for wall support option
 }
 
 export interface Cuba {

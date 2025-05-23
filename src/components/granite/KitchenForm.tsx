@@ -21,6 +21,7 @@ const cubaOptions: Omit<Cuba, 'id'>[] = [
 ];
 
 const generateId = () => Date.now().toString();
+const WALL_SUPPORT_PRICE = 70;
 
 const KitchenForm: FC = () => {
   const [countertops, setCountertops] = useState<Countertop[]>([]);
@@ -35,7 +36,6 @@ const KitchenForm: FC = () => {
   const [results, setResults] = useState<CalculationResults | null>(null);
 
   useEffect(() => {
-    // Add one countertop by default on mount
     if (countertops.length === 0) {
       addCountertop();
     }
@@ -44,7 +44,7 @@ const KitchenForm: FC = () => {
 
 
   const addCountertop = () => {
-    setCountertops(prev => [...prev, { id: generateId(), length: 100, width: 50, finishedSides: [] }]);
+    setCountertops(prev => [...prev, { id: generateId(), length: 100, width: 50, finishedSides: [], hasWallSupport: false }]);
   };
 
   const updateCountertop = (id: string, updates: Partial<Countertop>) => {
@@ -80,7 +80,7 @@ const KitchenForm: FC = () => {
 
     let totalStoneLinearLength = 0;
     countertops.forEach(c => {
-      totalStoneLinearLength += c.length / 100; // For main stone calculation (front edges)
+      totalStoneLinearLength += c.length / 100; 
     });
     const stoneCost = totalStoneLinearLength * stonePrice;
 
@@ -100,41 +100,49 @@ const KitchenForm: FC = () => {
     let bottomMoldingLengthForCalc = 0;
     let bottomMoldingSurcharge = 1.3; // 30% surcharge
 
-    // Calculate top molding length (sides WITHOUT finish)
     if (topMoldingWidth > 0) {
       countertops.forEach(c => {
         const allSides: ('top' | 'bottom' | 'left' | 'right')[] = ['top', 'bottom', 'left', 'right'];
         allSides.forEach(side => {
           if (!c.finishedSides.includes(side)) {
             if (side === 'top' || side === 'bottom') {
-              topMoldingLengthForCalc += c.length / 100; // meters
-            } else { // 'left' or 'right'
-              topMoldingLengthForCalc += c.width / 100; // meters
+              topMoldingLengthForCalc += c.length / 100;
+            } else { 
+              topMoldingLengthForCalc += c.width / 100;
             }
           }
         });
       });
-      const topMoldingArea = topMoldingLengthForCalc * (topMoldingWidth / 100); // m²
+      const topMoldingArea = topMoldingLengthForCalc * (topMoldingWidth / 100); 
       moldingCost += topMoldingArea * stonePrice;
     }
     
-    // Calculate bottom molding length (sides WITH finish)
     if (bottomMoldingWidth > 0) {
       countertops.forEach(c => {
         c.finishedSides.forEach(side => {
           if (side === 'top' || side === 'bottom') {
-            bottomMoldingLengthForCalc += c.length / 100; // meters
-          } else { // 'left' or 'right'
-            bottomMoldingLengthForCalc += c.width / 100; // meters
+            bottomMoldingLengthForCalc += c.length / 100; 
+          } else { 
+            bottomMoldingLengthForCalc += c.width / 100;
           }
         });
       });
-      const bottomMoldingArea = bottomMoldingLengthForCalc * (bottomMoldingWidth / 100); // m²
+      const bottomMoldingArea = bottomMoldingLengthForCalc * (bottomMoldingWidth / 100); 
       moldingCost += (bottomMoldingArea * stonePrice) * bottomMoldingSurcharge;
     }
 
     const cubasCost = cubas.reduce((acc, cuba) => acc + cuba.price, 0);
-    const totalCost = stoneCost + finishCost + skirtCost + moldingCost + cubasCost;
+    
+    let wallSupportCost = 0;
+    let supportedCountertopsCount = 0;
+    countertops.forEach(c => {
+      if (c.hasWallSupport) {
+        wallSupportCost += WALL_SUPPORT_PRICE;
+        supportedCountertopsCount++;
+      }
+    });
+
+    const totalCost = stoneCost + finishCost + skirtCost + moldingCost + cubasCost + wallSupportCost;
 
     const resultItems: CalculationResultItem[] = [];
     resultItems.push({ label: 'Pedra', value: stoneCost, details: `${totalStoneLinearLength.toFixed(2)}m linear` });
@@ -144,10 +152,10 @@ const KitchenForm: FC = () => {
     }
     
     const moldingDetailsParts: string[] = [];
-    if (topMoldingWidth > 0) {
+    if (topMoldingWidth > 0 && topMoldingLengthForCalc > 0) {
       moldingDetailsParts.push(`Superior ${topMoldingWidth}cm (${topMoldingLengthForCalc.toFixed(2)}m s/ acab.)`);
     }
-    if (bottomMoldingWidth > 0) {
+    if (bottomMoldingWidth > 0 && bottomMoldingLengthForCalc > 0) {
       moldingDetailsParts.push(`Inferior ${bottomMoldingWidth}cm (${bottomMoldingLengthForCalc.toFixed(2)}m c/ acab., acréscimo 30%)`);
     }
     if (moldingDetailsParts.length > 0) {
@@ -157,15 +165,24 @@ const KitchenForm: FC = () => {
     if (cubas.length > 0) {
       resultItems.push({ label: `Cubas (${cubas.length})`, value: cubasCost });
     }
+
+    if (wallSupportCost > 0) {
+      resultItems.push({ label: 'Suportes de Parede', value: wallSupportCost, details: `${supportedCountertopsCount} balcão(ões)` });
+    }
+
     resultItems.push({ label: 'Total', value: totalCost, isTotal: true });
 
-    const summaryItems: CalculationResultItem[] = countertops.map((c, i) => ({
-      label: `Balcão ${i + 1}`,
-      details: `${c.length}cm x ${c.width}cm. Acabamento: ${c.finishedSides.length > 0 ? c.finishedSides.map(s => {
+    const summaryItems: CalculationResultItem[] = countertops.map((c, i) => {
+      const finishDetails = c.finishedSides.length > 0 ? c.finishedSides.map(s => {
         if (s === 'top' || s === 'bottom') return `${c.length}cm (${s})`;
         return `${c.width}cm (${s})`;
-      }).join(', ') : 'Nenhum'}`,
-    }));
+      }).join(', ') : 'Nenhum';
+      const supportDetail = c.hasWallSupport ? 'Com suporte.' : 'Sem suporte.';
+      return {
+        label: `Balcão ${i + 1}`,
+        details: `${c.length}cm x ${c.width}cm. Acabamento: ${finishDetails}. ${supportDetail}`,
+      }
+    });
     
     setResults({ items: resultItems, summary: summaryItems });
   };
@@ -241,6 +258,7 @@ const KitchenForm: FC = () => {
                   onChange={(e) => setStonePrice(parseFloat(e.target.value) || 0)} 
                   placeholder="Ex: 150.00" 
                   step="0.01"
+                  min="0"
                   className="mt-1"
                 />
               </div>
@@ -297,4 +315,3 @@ const KitchenForm: FC = () => {
 };
 
 export default KitchenForm;
-
