@@ -18,10 +18,8 @@ interface WashbasinItemProps {
   index: number;
   onUpdate: (id: string, updates: Partial<WashbasinItemType>) => void;
   onRemove: (id: string) => void;
-  stonePriceLabel: string; // To show correct unit for stone price
-  finishPrice: number; // To display current finish price
-  onFinishPriceChange: (value: number) => void; // To update global finish price for "Sem Cuba"
-  isStonePricePerMeter: boolean; // To adjust display for stone price input hint
+  finishPrice: number; 
+  onFinishPriceChange: (value: number) => void; 
 }
 
 const SideButton: FC<{
@@ -54,8 +52,8 @@ const WashbasinItem: FC<WashbasinItemProps> = ({
   index, 
   onUpdate, 
   onRemove,
-  finishPrice,
-  onFinishPriceChange,
+  finishPrice, // Use the passed global finish price
+  onFinishPriceChange, // Allow updating the global finish price
 }) => {
 
   const handleDimensionChange = (field: 'length' | 'width', value: number) => {
@@ -65,17 +63,12 @@ const WashbasinItem: FC<WashbasinItemProps> = ({
   const handleCalculationTypeChange = (value: WashbasinCalculationType) => {
     onUpdate(item.id, { 
       calculationType: value,
-      // Reset related fields when type changes to ensure consistency
-      skirtHeight: 0,
-      topMoldingWidth: 0,
-      bottomMoldingWidth: 0,
-      finishedSides: [],
-      hasWallSupport: false,
+      // Keep other fields as they are now relevant for all types
     });
   };
 
   const toggleSide = (side: FinishedSide) => {
-    if (item.calculationType !== 'sem_cuba') return;
+    // Now applicable to all types for bancada finish, saia, and rodapés calculation
     const newFinishedSides = item.finishedSides.includes(side)
       ? item.finishedSides.filter(s => s !== side)
       : [...item.finishedSides, side];
@@ -83,7 +76,7 @@ const WashbasinItem: FC<WashbasinItemProps> = ({
   };
   
   const handleWallSupportChange = (checked: boolean) => {
-    if (item.calculationType !== 'sem_cuba') return;
+    // Now applicable to all types
     onUpdate(item.id, { hasWallSupport: checked });
   };
 
@@ -111,9 +104,9 @@ const WashbasinItem: FC<WashbasinItemProps> = ({
               <SelectValue placeholder="Selecione o tipo de cálculo" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="sem_cuba">Sem Cuba (Cálculo por m²)</SelectItem>
-              <SelectItem value="cuba_esculpida">Cuba Esculpida (Cálculo Linear)</SelectItem>
-              <SelectItem value="cuba_embutida">Cuba Embutida (Cálculo Linear)</SelectItem>
+              <SelectItem value="sem_cuba">Sem Cuba</SelectItem>
+              <SelectItem value="cuba_esculpida">Cuba Esculpida</SelectItem>
+              <SelectItem value="cuba_embutida">Cuba Embutida</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -135,110 +128,105 @@ const WashbasinItem: FC<WashbasinItemProps> = ({
           min={10}
         />
 
-        {item.calculationType === 'sem_cuba' && (
-          <>
-            <NumberInputStepper
-              id={`lavatorio-${item.id}-skirt-height`}
-              label="Altura da saia (Opcional)"
-              unit="cm"
-              value={item.skirtHeight}
-              onValueChange={(val) => onUpdate(item.id, { skirtHeight: val })}
-              min={0}
-            />
-            <div>
-              <p className="text-sm font-medium mb-2 text-foreground">Lados da bancada com acabamento:</p>
-              <p className="text-xs text-muted-foreground mb-2">Usado para calcular rodapés e saia.</p>
-              <div className="flex justify-center">
-                <div className="grid grid-cols-3 grid-rows-3 gap-1 w-[180px] h-[120px]">
-                  <div /> 
-                  <SideButton 
-                    label="Superior" 
-                    dimension={item.length} 
-                    isSelected={item.finishedSides.includes('top')} 
-                    onClick={() => toggleSide('top')}
-                    orientation="horizontal"
-                    className="col-span-1 row-start-1 col-start-2"
-                  />
-                  <div />
-                  <SideButton 
-                    label="Esquerdo" 
-                    dimension={item.width} 
-                    isSelected={item.finishedSides.includes('left')} 
-                    onClick={() => toggleSide('left')}
-                    orientation="vertical"
-                    className="row-start-2 col-start-1"
-                  />
-                  <div className="flex items-center justify-center border border-muted rounded-md bg-background text-xs text-muted-foreground row-start-2 col-start-2">
-                    Bancada
-                  </div>
-                  <SideButton 
-                    label="Direito" 
-                    dimension={item.width} 
-                    isSelected={item.finishedSides.includes('right')} 
-                    onClick={() => toggleSide('right')}
-                    orientation="vertical"
-                    className="row-start-2 col-start-3"
-                  />
-                  <div />
-                  <SideButton 
-                    label="Inferior" 
-                    dimension={item.length} 
-                    isSelected={item.finishedSides.includes('bottom')} 
-                    onClick={() => toggleSide('bottom')}
-                    orientation="horizontal"
-                    className="col-span-1 row-start-3 col-start-2"
-                  />
-                  <div />
+        {/* Fields now visible for all calculation types */}
+        <>
+          <div>
+            <p className="text-sm font-medium mb-2 text-foreground">Lados da bancada com acabamento:</p>
+            <p className="text-xs text-muted-foreground mb-2">Usado para calcular acabamento da bancada, rodapés e saia.</p>
+            <div className="flex justify-center">
+              <div className="grid grid-cols-3 grid-rows-3 gap-1 w-[180px] h-[120px]">
+                <div /> 
+                <SideButton 
+                  label="Superior" 
+                  dimension={item.length} 
+                  isSelected={item.finishedSides.includes('top')} 
+                  onClick={() => toggleSide('top')}
+                  orientation="horizontal"
+                  className="col-span-1 row-start-1 col-start-2"
+                />
+                <div />
+                <SideButton 
+                  label="Esquerdo" 
+                  dimension={item.width} 
+                  isSelected={item.finishedSides.includes('left')} 
+                  onClick={() => toggleSide('left')}
+                  orientation="vertical"
+                  className="row-start-2 col-start-1"
+                />
+                <div className="flex items-center justify-center border border-muted rounded-md bg-background text-xs text-muted-foreground row-start-2 col-start-2">
+                  Bancada
                 </div>
+                <SideButton 
+                  label="Direito" 
+                  dimension={item.width} 
+                  isSelected={item.finishedSides.includes('right')} 
+                  onClick={() => toggleSide('right')}
+                  orientation="vertical"
+                  className="row-start-2 col-start-3"
+                />
+                <div />
+                <SideButton 
+                  label="Inferior" 
+                  dimension={item.length} 
+                  isSelected={item.finishedSides.includes('bottom')} 
+                  onClick={() => toggleSide('bottom')}
+                  orientation="horizontal"
+                  className="col-span-1 row-start-3 col-start-2"
+                />
+                <div />
               </div>
             </div>
-             <div>
-              <Label htmlFor={`lavatorio-${item.id}-finish-price`} className="text-sm font-medium">Valor do acabamento da bancada (R$/metro linear)</Label>
-              <Input 
-                id={`lavatorio-${item.id}-finish-price`} 
-                type="number" 
-                value={finishPrice} 
-                onChange={(e) => onFinishPriceChange(parseFloat(e.target.value) || 0)} 
-                placeholder="Ex: 80.00" 
-                step="0.01"
-                min="0"
-                className="mt-1"
-                disabled={item.finishedSides.length === 0 && item.calculationType === 'sem_cuba'}
-              />
-            </div>
-            <h3 className="text-md font-medium pt-2 text-foreground">Rodapés (Opcional)</h3>
-            <NumberInputStepper
-              id={`lavatorio-${item.id}-top-molding-width`}
-              label="Rodapé em cima da bancada (largura)"
-              unit="cm"
-              value={item.topMoldingWidth}
-              onValueChange={(val) => onUpdate(item.id, { topMoldingWidth: val })}
-              min={0}
+          </div>
+
+          {/* Global finish price is now in WashbasinForm.tsx, item specific input removed from here */}
+          {/* If finish price needed to be per item, it would stay here. */}
+          {/* For now, assuming the global finish price from WashbasinForm is sufficient */}
+          {/* and applies to the finished sides of this item's countertop. */}
+
+          <NumberInputStepper
+            id={`lavatorio-${item.id}-skirt-height`}
+            label="Altura da saia (Opcional)"
+            unit="cm"
+            value={item.skirtHeight}
+            onValueChange={(val) => onUpdate(item.id, { skirtHeight: val })}
+            min={0}
+          />
+          
+          <h3 className="text-md font-medium pt-2 text-foreground">Rodapés (Opcional)</h3>
+          <NumberInputStepper
+            id={`lavatorio-${item.id}-top-molding-width`}
+            label="Rodapé em cima da bancada (largura)"
+            unit="cm"
+            value={item.topMoldingWidth}
+            onValueChange={(val) => onUpdate(item.id, { topMoldingWidth: val })}
+            min={0}
+          />
+          <NumberInputStepper
+            id={`lavatorio-${item.id}-bottom-molding-width`}
+            label="Rodapé embaixo do móvel (largura)"
+            unit="cm"
+            value={item.bottomMoldingWidth}
+            onValueChange={(val) => onUpdate(item.id, { bottomMoldingWidth: val })}
+            min={0}
+          />
+          <div className="flex items-center space-x-2 pt-2">
+            <Checkbox
+              id={`lavatorio-${item.id}-wall-support`}
+              checked={item.hasWallSupport}
+              onCheckedChange={handleWallSupportChange}
+              // No longer disabled based on calculationType
             />
-            <NumberInputStepper
-              id={`lavatorio-${item.id}-bottom-molding-width`}
-              label="Rodapé embaixo do móvel (largura)"
-              unit="cm"
-              value={item.bottomMoldingWidth}
-              onValueChange={(val) => onUpdate(item.id, { bottomMoldingWidth: val })}
-              min={0}
-            />
-            <div className="flex items-center space-x-2 pt-2">
-              <Checkbox
-                id={`lavatorio-${item.id}-wall-support`}
-                checked={item.hasWallSupport}
-                onCheckedChange={handleWallSupportChange}
-                disabled={item.calculationType !== 'sem_cuba'}
-              />
-              <Label htmlFor={`lavatorio-${item.id}-wall-support`} className="text-sm font-medium text-foreground">
-                Incluir suporte de parede (R$ 70,00)
-              </Label>
-            </div>
-          </>
-        )}
+            <Label htmlFor={`lavatorio-${item.id}-wall-support`} className="text-sm font-medium text-foreground">
+              Incluir suporte de parede (R$ 70,00)
+            </Label>
+          </div>
+        </>
+        {/* End of fields now visible for all calculation types */}
+
       </CardContent>
     </Card>
   );
 };
 
 export default WashbasinItem;
+
