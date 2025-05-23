@@ -23,7 +23,7 @@ const ResultItem: FC<{ item: CalculationResultItem }> = ({ item }) => (
   <div className={`flex justify-between py-2 ${item.isTotal ? 'border-t pt-3 mt-2' : ''}`}>
     <span className={item.isTotal ? 'font-semibold text-lg' : 'text-sm'}>
       {item.label}
-      {item.details && <span className="text-xs text-muted-foreground ml-1">{item.details}</span>}
+      {item.details && <span className="text-xs text-muted-foreground ml-1" data-result-detail="true">{item.details}</span>}
     </span>
     <span className={item.isTotal ? 'font-bold text-lg text-primary' : 'font-medium text-sm'}>
       {typeof item.value === 'number' ? formatCurrency(item.value) : item.value}
@@ -51,45 +51,45 @@ const ResultsDisplay: FC<ResultsDisplayProps> = ({ title, results }) => {
 
     try {
       resultsCardRef.current.scrollIntoView({ behavior: 'instant', block: 'nearest' });
-      await new Promise(resolve => setTimeout(resolve, 300)); // Increased delay
+      await new Promise(resolve => setTimeout(resolve, 300)); 
 
       const canvas = await html2canvas(resultsCardRef.current, {
         scale: 2,
         useCORS: true,
-        backgroundColor: '#FFFFFF', // Canvas background color
+        backgroundColor: '#FFFFFF', 
         logging: true,
         onclone: (documentClone) => {
           const cardToClone = documentClone.querySelector('[data-testid="results-card-for-capture"]');
           if (cardToClone && cardToClone instanceof HTMLElement) {
-            // Remove animation class from the clone
             cardToClone.classList.remove('fade-in-animation');
-            // Explicitly set background for the card itself in the clone
             cardToClone.style.backgroundColor = 'white';
 
-            // Force text and icon colors to be visible (black) for debugging
-            // This targets common text elements and SVGs.
             const elementsToColor = cardToClone.querySelectorAll('span, p, div, h3, h5, strong, b, svg, button > svg');
             elementsToColor.forEach(el => {
               if (el instanceof HTMLElement) {
-                // More specific targeting for text elements
                 if (['SPAN', 'P', 'DIV', 'H3', 'H5', 'STRONG', 'B'].includes(el.tagName)) {
                    el.style.setProperty('color', 'black', 'important');
-                   el.style.webkitTextFillColor = 'black'; // For WebKit browsers
+                   el.style.webkitTextFillColor = 'black'; 
                 }
               }
               if (el instanceof SVGElement) {
-                // For SVG elements (like icons)
                 el.style.setProperty('fill', 'black', 'important');
-                // Also set stroke for SVGs that might use it for lines
                 el.style.setProperty('stroke', 'black', 'important'); 
 
-                // If SVGs have <path> or other children, color them too
                 el.querySelectorAll('*').forEach(svgChild => {
                     if (svgChild instanceof SVGElement) {
                         svgChild.style.setProperty('fill', 'black', 'important');
                         svgChild.style.setProperty('stroke', 'black', 'important');
                     }
                 });
+              }
+            });
+
+            // Hide specific detail spans in the cloned document
+            const detailSpans = cardToClone.querySelectorAll('[data-result-detail="true"]');
+            detailSpans.forEach(span => {
+              if (span instanceof HTMLElement) {
+                span.style.display = 'none';
               }
             });
           }
@@ -103,7 +103,7 @@ const ResultsDisplay: FC<ResultsDisplayProps> = ({ title, results }) => {
       const image = canvas.toDataURL('image/png');
       const link = document.createElement('a');
       
-      const date = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+      const date = new Date().toISOString().split('T')[0]; 
       const safeTitle = title.toLowerCase().replace(/[^a-z0-9_]+/g, '_').replace(/_$/, '');
       link.download = `orcamento_${safeTitle}_${date}.png`;
       
