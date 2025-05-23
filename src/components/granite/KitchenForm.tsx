@@ -2,7 +2,7 @@
 "use client";
 
 import type { FC } from 'react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import type { Countertop, Cuba, CalculationResults, CalculationResultItem } from '@/types';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,10 +26,11 @@ const WALL_SUPPORT_PRICE = 70;
 const KitchenForm: FC = () => {
   const [countertops, setCountertops] = useState<Countertop[]>([]);
   const [cubas, setCubas] = useState<Cuba[]>([]);
-  
+
   const [stonePrice, setStonePrice] = useState<number>(150);
   const [skirtHeight, setSkirtHeight] = useState<number>(10);
-  const [finishType, setFinishType] = useState<string>("80"); // finishPrice
+  const [finishPriceOption, setFinishPriceOption] = useState<string>("80"); // "80", "40", "other"
+  const [customFinishPrice, setCustomFinishPrice] = useState<number>(0);
   const [topMoldingWidth, setTopMoldingWidth] = useState<number>(5);
   const [bottomMoldingWidth, setBottomMoldingWidth] = useState<number>(5);
 
@@ -42,17 +43,26 @@ const KitchenForm: FC = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const derivedFinishPrice = useMemo(() => {
+    if (finishPriceOption === 'other') {
+      return customFinishPrice;
+    }
+    return parseFloat(finishPriceOption) || 0;
+  }, [finishPriceOption, customFinishPrice]);
 
   const addCountertop = () => {
     setCountertops(prev => [...prev, { id: generateId(), length: 100, width: 50, finishedSides: [], hasWallSupport: false }]);
+    setResults(null);
   };
 
   const updateCountertop = (id: string, updates: Partial<Countertop>) => {
     setCountertops(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
+    setResults(null);
   };
 
   const removeCountertop = (id: string) => {
     setCountertops(prev => prev.filter(c => c.id !== id));
+    setResults(null);
   };
 
   const addCuba = (type: 'pequena' | 'media' | 'grande') => {
@@ -60,10 +70,12 @@ const KitchenForm: FC = () => {
     if (cubaOption) {
       setCubas(prev => [...prev, { ...cubaOption, id: generateId() }]);
     }
+    setResults(null);
   };
 
   const removeCuba = (id: string) => {
     setCubas(prev => prev.filter(c => c.id !== id));
+    setResults(null);
   };
 
   const handleCalculation = () => {
@@ -75,12 +87,17 @@ const KitchenForm: FC = () => {
       alert('Informe o valor da pedra para continuar.');
       return;
     }
+    if (derivedFinishPrice <= 0 && countertops.some(c => c.finishedSides.length > 0) ) {
+      alert('Informe o valor do acabamento, pois há lados com acabamento selecionados.');
+      return;
+    }
 
-    const finishPriceValue = parseFloat(finishType) || 0;
+
+    const finishPriceValue = derivedFinishPrice;
 
     let totalStoneLinearLength = 0;
     countertops.forEach(c => {
-      totalStoneLinearLength += c.length / 100; 
+      totalStoneLinearLength += c.length / 100;
     });
     const stoneCost = totalStoneLinearLength * stonePrice;
 
@@ -92,11 +109,11 @@ const KitchenForm: FC = () => {
       if (c.finishedSides.includes('right')) totalFinishLength += c.width / 100;
     });
     const finishCost = totalFinishLength * finishPriceValue;
-    
+
     const skirtCost = skirtHeight > 0 ? (skirtHeight / 100) * totalFinishLength * stonePrice : 0;
 
     let moldingCost = 0;
-    let topMoldingLengthForCalc = 0; 
+    let topMoldingLengthForCalc = 0;
     let bottomMoldingLengthForCalc = 0;
     let bottomMoldingSurcharge = 1.3; // 30% surcharge
 
@@ -107,32 +124,32 @@ const KitchenForm: FC = () => {
           if (!c.finishedSides.includes(side)) {
             if (side === 'top' || side === 'bottom') {
               topMoldingLengthForCalc += c.length / 100;
-            } else { 
+            } else {
               topMoldingLengthForCalc += c.width / 100;
             }
           }
         });
       });
-      const topMoldingArea = topMoldingLengthForCalc * (topMoldingWidth / 100); 
+      const topMoldingArea = topMoldingLengthForCalc * (topMoldingWidth / 100);
       moldingCost += topMoldingArea * stonePrice;
     }
-    
+
     if (bottomMoldingWidth > 0) {
       countertops.forEach(c => {
         c.finishedSides.forEach(side => {
           if (side === 'top' || side === 'bottom') {
-            bottomMoldingLengthForCalc += c.length / 100; 
-          } else { 
+            bottomMoldingLengthForCalc += c.length / 100;
+          } else {
             bottomMoldingLengthForCalc += c.width / 100;
           }
         });
       });
-      const bottomMoldingArea = bottomMoldingLengthForCalc * (bottomMoldingWidth / 100); 
+      const bottomMoldingArea = bottomMoldingLengthForCalc * (bottomMoldingWidth / 100);
       moldingCost += (bottomMoldingArea * stonePrice) * bottomMoldingSurcharge;
     }
 
     const cubasCost = cubas.reduce((acc, cuba) => acc + cuba.price, 0);
-    
+
     let wallSupportCost = 0;
     let supportedCountertopsCount = 0;
     countertops.forEach(c => {
@@ -146,11 +163,13 @@ const KitchenForm: FC = () => {
 
     const resultItems: CalculationResultItem[] = [];
     resultItems.push({ label: 'Pedra', value: stoneCost, details: `${totalStoneLinearLength.toFixed(2)}m linear` });
-    resultItems.push({ label: 'Acabamento', value: finishCost, details: `${totalFinishLength.toFixed(2)}m linear (R$ ${finishPriceValue}/m)` });
-    if (skirtHeight > 0) {
-      resultItems.push({ label: 'Saia', value: skirtCost, details: `${skirtHeight}cm altura` });
+    if (totalFinishLength > 0) {
+        resultItems.push({ label: 'Acabamento', value: finishCost, details: `${totalFinishLength.toFixed(2)}m linear (R$ ${finishPriceValue.toFixed(2)}/m)` });
     }
-    
+    if (skirtHeight > 0 && totalFinishLength > 0) { // Skirt depends on finished sides length
+      resultItems.push({ label: 'Saia', value: skirtCost, details: `${skirtHeight}cm altura, ${totalFinishLength.toFixed(2)}m comp.` });
+    }
+
     const moldingDetailsParts: string[] = [];
     if (topMoldingWidth > 0 && topMoldingLengthForCalc > 0) {
       moldingDetailsParts.push(`Superior ${topMoldingWidth}cm (${topMoldingLengthForCalc.toFixed(2)}m s/ acab.)`);
@@ -183,7 +202,7 @@ const KitchenForm: FC = () => {
         details: `${c.length}cm x ${c.width}cm. Acabamento: ${finishDetails}. ${supportDetail}`,
       }
     });
-    
+
     setResults({ items: resultItems, summary: summaryItems });
   };
 
@@ -251,35 +270,51 @@ const KitchenForm: FC = () => {
             <CardContent className="space-y-4">
               <div>
                 <Label htmlFor="stone-price" className="text-sm font-medium">Valor da pedra (R$/metro linear)</Label>
-                <Input 
-                  id="stone-price" 
-                  type="number" 
-                  value={stonePrice} 
-                  onChange={(e) => setStonePrice(parseFloat(e.target.value) || 0)} 
-                  placeholder="Ex: 150.00" 
+                <Input
+                  id="stone-price"
+                  type="number"
+                  value={stonePrice}
+                  onChange={(e) => {setStonePrice(parseFloat(e.target.value) || 0); setResults(null);}}
+                  placeholder="Ex: 150.00"
                   step="0.01"
                   min="0"
                   className="mt-1"
                 />
               </div>
                <div>
-                <Label htmlFor="finish-price" className="text-sm font-medium">Valor do acabamento por metro linear</Label>
-                <Select value={finishType} onValueChange={setFinishType}>
-                  <SelectTrigger id="finish-price" className="w-full mt-1">
+                <Label htmlFor="finish-price-option" className="text-sm font-medium">Valor do acabamento por metro linear</Label>
+                <Select value={finishPriceOption} onValueChange={(value) => {setFinishPriceOption(value); setResults(null);}}>
+                  <SelectTrigger id="finish-price-option" className="w-full mt-1">
                     <SelectValue placeholder="Selecione o valor" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="80">R$ 80,00</SelectItem>
                     <SelectItem value="40">R$ 40,00</SelectItem>
+                    <SelectItem value="other">Outro</SelectItem>
                   </SelectContent>
                 </Select>
+                {finishPriceOption === 'other' && (
+                  <div className="mt-2">
+                    <Label htmlFor="custom-finish-price" className="text-sm font-medium">Valor personalizado (R$)</Label>
+                    <Input
+                      id="custom-finish-price"
+                      type="number"
+                      value={customFinishPrice}
+                      onChange={(e) => {setCustomFinishPrice(parseFloat(e.target.value) || 0); setResults(null);}}
+                      placeholder="Ex: 65.00"
+                      step="0.01"
+                      min="0"
+                      className="mt-1"
+                    />
+                  </div>
+                )}
               </div>
               <NumberInputStepper
                 id="skirt-height"
                 label="Altura da saia"
                 unit="cm"
                 value={skirtHeight}
-                onValueChange={setSkirtHeight}
+                onValueChange={(val) => {setSkirtHeight(val); setResults(null);}}
                 min={0}
               />
               <h3 className="text-lg font-medium pt-2 text-foreground">Rodapés (Opcional)</h3>
@@ -288,7 +323,7 @@ const KitchenForm: FC = () => {
                 label="Rodapé em cima do balcão (largura)"
                 unit="cm"
                 value={topMoldingWidth}
-                onValueChange={setTopMoldingWidth}
+                onValueChange={(val) => {setTopMoldingWidth(val); setResults(null);}}
                 min={0}
               />
               <NumberInputStepper
@@ -296,7 +331,7 @@ const KitchenForm: FC = () => {
                 label="Rodapé embaixo do móvel (largura)"
                 unit="cm"
                 value={bottomMoldingWidth}
-                onValueChange={setBottomMoldingWidth}
+                onValueChange={(val) => {setBottomMoldingWidth(val); setResults(null);}}
                 min={0}
               />
             </CardContent>
@@ -315,6 +350,3 @@ const KitchenForm: FC = () => {
 };
 
 export default KitchenForm;
-
-
-    

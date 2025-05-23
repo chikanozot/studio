@@ -9,7 +9,7 @@ import { Trash2, GripVertical } from "lucide-react";
 import NumberInputStepper from "@/components/shared/NumberInputStepper";
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Input } from '@/components/ui/input';
+// import { Input } from '@/components/ui/input'; // Not needed here anymore for finish price
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 
@@ -18,8 +18,8 @@ interface WashbasinItemProps {
   index: number;
   onUpdate: (id: string, updates: Partial<WashbasinItemType>) => void;
   onRemove: (id: string) => void;
-  finishPrice: number; 
-  onFinishPriceChange: (value: number) => void; 
+  finishPrice: number; // Receives the derived global finish price
+  // onFinishPriceChange prop is removed as the logic is now global in WashbasinForm
 }
 
 const SideButton: FC<{
@@ -47,13 +47,12 @@ const SideButton: FC<{
   </Button>
 );
 
-const WashbasinItem: FC<WashbasinItemProps> = ({ 
-  item, 
-  index, 
-  onUpdate, 
+const WashbasinItem: FC<WashbasinItemProps> = ({
+  item,
+  index,
+  onUpdate,
   onRemove,
-  finishPrice, // Use the passed global finish price
-  onFinishPriceChange, // Allow updating the global finish price
+  finishPrice, // Consumes the globally determined finish price
 }) => {
 
   const handleDimensionChange = (field: 'length' | 'width', value: number) => {
@@ -61,22 +60,19 @@ const WashbasinItem: FC<WashbasinItemProps> = ({
   };
 
   const handleCalculationTypeChange = (value: WashbasinCalculationType) => {
-    onUpdate(item.id, { 
+    onUpdate(item.id, {
       calculationType: value,
-      // Keep other fields as they are now relevant for all types
     });
   };
 
   const toggleSide = (side: FinishedSide) => {
-    // Now applicable to all types for bancada finish, saia, and rodapés calculation
     const newFinishedSides = item.finishedSides.includes(side)
       ? item.finishedSides.filter(s => s !== side)
       : [...item.finishedSides, side];
     onUpdate(item.id, { finishedSides: newFinishedSides });
   };
-  
+
   const handleWallSupportChange = (checked: boolean) => {
-    // Now applicable to all types
     onUpdate(item.id, { hasWallSupport: checked });
   };
 
@@ -96,8 +92,8 @@ const WashbasinItem: FC<WashbasinItemProps> = ({
       <CardContent className="p-4 space-y-4">
         <div>
           <Label htmlFor={`lavatorio-${item.id}-calculation-type`} className="text-sm font-medium">Tipo de Cálculo</Label>
-          <Select 
-            value={item.calculationType} 
+          <Select
+            value={item.calculationType}
             onValueChange={handleCalculationTypeChange}
           >
             <SelectTrigger id={`lavatorio-${item.id}-calculation-type`} className="w-full mt-1">
@@ -128,27 +124,27 @@ const WashbasinItem: FC<WashbasinItemProps> = ({
           min={10}
         />
 
-        {/* Fields now visible for all calculation types */}
         <>
           <div>
             <p className="text-sm font-medium mb-2 text-foreground">Lados da bancada com acabamento:</p>
-            <p className="text-xs text-muted-foreground mb-2">Usado para calcular acabamento da bancada, rodapés e saia.</p>
+            <p className="text-xs text-muted-foreground mb-1">Usado para calcular acabamento da bancada, rodapés e saia.</p>
+            <p className="text-xs text-muted-foreground mb-2">O valor do acabamento (R$ {finishPrice.toFixed(2)}/m) é definido nas Configurações Globais.</p>
             <div className="flex justify-center">
               <div className="grid grid-cols-3 grid-rows-3 gap-1 w-[180px] h-[120px]">
-                <div /> 
-                <SideButton 
-                  label="Superior" 
-                  dimension={item.length} 
-                  isSelected={item.finishedSides.includes('top')} 
+                <div />
+                <SideButton
+                  label="Superior"
+                  dimension={item.length}
+                  isSelected={item.finishedSides.includes('top')}
                   onClick={() => toggleSide('top')}
                   orientation="horizontal"
                   className="col-span-1 row-start-1 col-start-2"
                 />
                 <div />
-                <SideButton 
-                  label="Esquerdo" 
-                  dimension={item.width} 
-                  isSelected={item.finishedSides.includes('left')} 
+                <SideButton
+                  label="Esquerdo"
+                  dimension={item.width}
+                  isSelected={item.finishedSides.includes('left')}
                   onClick={() => toggleSide('left')}
                   orientation="vertical"
                   className="row-start-2 col-start-1"
@@ -156,19 +152,19 @@ const WashbasinItem: FC<WashbasinItemProps> = ({
                 <div className="flex items-center justify-center border border-muted rounded-md bg-background text-xs text-muted-foreground row-start-2 col-start-2">
                   Bancada
                 </div>
-                <SideButton 
-                  label="Direito" 
-                  dimension={item.width} 
-                  isSelected={item.finishedSides.includes('right')} 
+                <SideButton
+                  label="Direito"
+                  dimension={item.width}
+                  isSelected={item.finishedSides.includes('right')}
                   onClick={() => toggleSide('right')}
                   orientation="vertical"
                   className="row-start-2 col-start-3"
                 />
                 <div />
-                <SideButton 
-                  label="Inferior" 
-                  dimension={item.length} 
-                  isSelected={item.finishedSides.includes('bottom')} 
+                <SideButton
+                  label="Inferior"
+                  dimension={item.length}
+                  isSelected={item.finishedSides.includes('bottom')}
                   onClick={() => toggleSide('bottom')}
                   orientation="horizontal"
                   className="col-span-1 row-start-3 col-start-2"
@@ -178,11 +174,6 @@ const WashbasinItem: FC<WashbasinItemProps> = ({
             </div>
           </div>
 
-          {/* Global finish price is now in WashbasinForm.tsx, item specific input removed from here */}
-          {/* If finish price needed to be per item, it would stay here. */}
-          {/* For now, assuming the global finish price from WashbasinForm is sufficient */}
-          {/* and applies to the finished sides of this item's countertop. */}
-
           <NumberInputStepper
             id={`lavatorio-${item.id}-skirt-height`}
             label="Altura da saia (Opcional)"
@@ -191,7 +182,7 @@ const WashbasinItem: FC<WashbasinItemProps> = ({
             onValueChange={(val) => onUpdate(item.id, { skirtHeight: val })}
             min={0}
           />
-          
+
           <h3 className="text-md font-medium pt-2 text-foreground">Rodapés (Opcional)</h3>
           <NumberInputStepper
             id={`lavatorio-${item.id}-top-molding-width`}
@@ -214,14 +205,12 @@ const WashbasinItem: FC<WashbasinItemProps> = ({
               id={`lavatorio-${item.id}-wall-support`}
               checked={item.hasWallSupport}
               onCheckedChange={handleWallSupportChange}
-              // No longer disabled based on calculationType
             />
             <Label htmlFor={`lavatorio-${item.id}-wall-support`} className="text-sm font-medium text-foreground">
               Incluir suporte de parede (R$ 70,00)
             </Label>
           </div>
         </>
-        {/* End of fields now visible for all calculation types */}
 
       </CardContent>
     </Card>
@@ -229,4 +218,3 @@ const WashbasinItem: FC<WashbasinItemProps> = ({
 };
 
 export default WashbasinItem;
-
