@@ -12,7 +12,7 @@ import { Plus, Calculator } from "lucide-react";
 import ThresholdItem from './ThresholdItem';
 import ResultsDisplay from '../shared/ResultsDisplay';
 
-const generateId = () => Date.now().toString();
+const generateId = () => crypto.randomUUID();
 
 const ThresholdForm: FC = () => {
   const [items, setItems] = useState<SoleiraItem[]>([]);
@@ -162,3 +162,6 @@ const ThresholdForm: FC = () => {
 };
 
 export default ThresholdForm;
+
+
+    

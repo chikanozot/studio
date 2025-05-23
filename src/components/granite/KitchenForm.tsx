@@ -20,7 +20,7 @@ const cubaOptions: Omit<Cuba, 'id'>[] = [
   { type: 'grande', name: 'Grande', price: 240 },
 ];
 
-const generateId = () => Date.now().toString();
+const generateId = () => crypto.randomUUID();
 const WALL_SUPPORT_PRICE = 70;
 
 const KitchenForm: FC = () => {
@@ -315,3 +315,6 @@ const KitchenForm: FC = () => {
 };
 
 export default KitchenForm;
+
+
+    

@@ -13,11 +13,11 @@ import ResultsDisplay from '../shared/ResultsDisplay';
 import WashbasinItem from './WashbasinItem';
 
 const SCULPTED_SINK_LABOR_COST = 400;
-const SCULPTED_SINK_MATERIAL_METERS = 0.5; // 0.5 meters of material (now costed with m2 price)
+const SCULPTED_SINK_MATERIAL_METERS = 0.5; 
 const BUILT_IN_SINK_COST = 130;
 const WALL_SUPPORT_PRICE = 70;
 
-const generateId = () => Date.now().toString();
+const generateId = () => crypto.randomUUID();
 
 const defaultWashbasinItem: () => WashbasinItemType = () => ({
   id: generateId(),
@@ -63,8 +63,7 @@ const WashbasinForm: FC = () => {
   const removeWashbasinItem = (id: string) => {
     setWashbasinItems(prev => {
       const newItems = prev.filter(item => item.id !== id);
-      if (newItems.length === 0) { // If removing the last item, add a new default one
-         // No need for setTimeout here, direct state update is fine
+      if (newItems.length === 0) { 
          return [defaultWashbasinItem()];
       }
       return newItems;
@@ -126,7 +125,7 @@ const WashbasinForm: FC = () => {
           itemTotalCost += SCULPTED_SINK_LABOR_COST;
           itemSummaryItems.push({ label: `${itemLabelPrefix} - Cuba Esculpida (M.O.)`, details: `R$ ${SCULPTED_SINK_LABOR_COST.toFixed(2)}`});
           
-          const sinkMaterialCost = SCULPTED_SINK_MATERIAL_METERS * stonePriceM2; // Using m2 price for the material
+          const sinkMaterialCost = SCULPTED_SINK_MATERIAL_METERS * stonePriceM2; 
           itemResultItems.push({ label: 'Material Adicional Cuba Esculpida', value: sinkMaterialCost, details: `${SCULPTED_SINK_MATERIAL_METERS}m de material (custo por m²: R$ ${stonePriceM2})` });
           itemTotalCost += sinkMaterialCost;
           itemSummaryItems.push({ label: `${itemLabelPrefix} - Cuba Esculpida (Material)`, details: `${SCULPTED_SINK_MATERIAL_METERS}m de pedra (base m²)`});
@@ -163,8 +162,8 @@ const WashbasinForm: FC = () => {
            alert(`Para o Lavatório ${index + 1}, com saia de ${item.skirtHeight}cm, selecione pelo menos um lado com acabamento na bancada para basear o comprimento da saia.`);
            return;
         }
-        // Base skirt length on finished sides, if none, use total perimeter of the countertop for skirt calculation.
-        const skirtBaseLengthMeters = totalFinishLengthMeters > 0 ? totalFinishLengthMeters : (2 * lengthM + 2 * widthM);
+        
+        const skirtBaseLengthMeters = totalFinishLengthMeters > 0 ? totalFinishLengthMeters : (item.finishedSides.reduce((acc, side) => acc + ((side === 'top' || side === 'bottom') ? lengthM : widthM),0));
 
         const skirtArea = (item.skirtHeight / 100) * skirtBaseLengthMeters; 
         const currentSkirtCost = skirtArea * stonePriceM2;
@@ -210,8 +209,6 @@ const WashbasinForm: FC = () => {
       }
 
       if (item.hasWallSupport) {
-        // Wall support cost is added to grand total later, not per item here.
-        // But we count it for summary and global calculation.
         supportedWashbasinsCount++;
         itemSummaryItems.push({ label: `${itemLabelPrefix} - Suporte`, details: `Com suporte de parede (R$ ${WALL_SUPPORT_PRICE.toFixed(2)})` });
       }
@@ -336,5 +333,7 @@ const WashbasinForm: FC = () => {
 };
 
 export default WashbasinForm;
+
+    
 
     
