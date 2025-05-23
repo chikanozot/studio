@@ -50,20 +50,50 @@ const ResultsDisplay: FC<ResultsDisplayProps> = ({ title, results }) => {
     }
 
     try {
-      // Ensure the element is not scrolled out of view for accurate capture
       resultsCardRef.current.scrollIntoView({ behavior: 'instant', block: 'nearest' });
-      
-      // A short delay might help ensure styles are fully applied if there are transitions
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise(resolve => setTimeout(resolve, 300)); // Increased delay
 
       const canvas = await html2canvas(resultsCardRef.current, {
-        scale: 2, // Aumenta a resolução da imagem
-        useCORS: true, // Para carregar imagens externas, se houver
-        backgroundColor: '#FFFFFF', // Explicitly set background to white
-        logging: true, // Enable logging for debugging
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#FFFFFF', // Canvas background color
+        logging: true,
         onclone: (documentClone) => {
-          // This is a good place to apply styles that might not be picked up,
-          // or to hide elements like the save button itself during capture
+          const cardToClone = documentClone.querySelector('[data-testid="results-card-for-capture"]');
+          if (cardToClone && cardToClone instanceof HTMLElement) {
+            // Remove animation class from the clone
+            cardToClone.classList.remove('fade-in-animation');
+            // Explicitly set background for the card itself in the clone
+            cardToClone.style.backgroundColor = 'white';
+
+            // Force text and icon colors to be visible (black) for debugging
+            // This targets common text elements and SVGs.
+            const elementsToColor = cardToClone.querySelectorAll('span, p, div, h3, h5, strong, b, svg, button > svg');
+            elementsToColor.forEach(el => {
+              if (el instanceof HTMLElement) {
+                // More specific targeting for text elements
+                if (['SPAN', 'P', 'DIV', 'H3', 'H5', 'STRONG', 'B'].includes(el.tagName)) {
+                   el.style.setProperty('color', 'black', 'important');
+                   el.style.webkitTextFillColor = 'black'; // For WebKit browsers
+                }
+              }
+              if (el instanceof SVGElement) {
+                // For SVG elements (like icons)
+                el.style.setProperty('fill', 'black', 'important');
+                // Also set stroke for SVGs that might use it for lines
+                el.style.setProperty('stroke', 'black', 'important'); 
+
+                // If SVGs have <path> or other children, color them too
+                el.querySelectorAll('*').forEach(svgChild => {
+                    if (svgChild instanceof SVGElement) {
+                        svgChild.style.setProperty('fill', 'black', 'important');
+                        svgChild.style.setProperty('stroke', 'black', 'important');
+                    }
+                });
+              }
+            });
+          }
+
           const clonedSaveButton = documentClone.querySelector('[data-save-button="true"]');
           if (clonedSaveButton && clonedSaveButton instanceof HTMLElement) {
             clonedSaveButton.style.display = 'none';
@@ -96,7 +126,11 @@ const ResultsDisplay: FC<ResultsDisplayProps> = ({ title, results }) => {
   };
 
   return (
-    <Card className="mt-8 shadow-md fade-in-animation" ref={resultsCardRef}>
+    <Card 
+      className="mt-8 shadow-md fade-in-animation" 
+      ref={resultsCardRef} 
+      data-testid="results-card-for-capture"
+    >
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="text-xl text-primary">{title}</CardTitle>
         <Button variant="outline" size="sm" onClick={handleSaveAsImage} data-save-button="true">
