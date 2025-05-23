@@ -1,8 +1,13 @@
 "use client";
 
 import type { FC } from 'react';
+import { useRef } from 'react';
 import type { CalculationResults, CalculationResultItem } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Download } from 'lucide-react';
+import html2canvas from 'html2canvas';
+import { useToast } from '@/hooks/use-toast';
 
 interface ResultsDisplayProps {
   title: string;
@@ -26,14 +31,63 @@ const ResultItem: FC<{ item: CalculationResultItem }> = ({ item }) => (
 );
 
 const ResultsDisplay: FC<ResultsDisplayProps> = ({ title, results }) => {
+  const resultsCardRef = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
+
   if (!results) {
     return null;
   }
 
+  const handleSaveAsImage = async () => {
+    if (!resultsCardRef.current) {
+      toast({
+        variant: "destructive",
+        title: "Erro ao Salvar Imagem",
+        description: "Não foi possível encontrar a área do orçamento para salvar.",
+      });
+      return;
+    }
+
+    try {
+      const canvas = await html2canvas(resultsCardRef.current, {
+        scale: 2, // Aumenta a resolução da imagem
+        useCORS: true, // Para carregar imagens externas, se houver
+        backgroundColor: null, // Para manter o fundo do card (ou defina uma cor)
+      });
+      const image = canvas.toDataURL('image/png');
+      const link = document.createElement('a');
+      
+      // Criar um nome de arquivo mais descritivo
+      const date = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+      const safeTitle = title.toLowerCase().replace(/[^a-z0-9_]+/g, '_').replace(/_$/, '');
+      link.download = `orcamento_${safeTitle}_${date}.png`;
+      
+      link.href = image;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast({
+        title: "Orçamento Salvo!",
+        description: "A imagem do orçamento foi baixada.",
+      });
+    } catch (error) {
+      console.error("Erro ao salvar imagem do orçamento:", error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao Salvar Imagem",
+        description: "Ocorreu um problema ao tentar gerar a imagem do orçamento.",
+      });
+    }
+  };
+
   return (
-    <Card className="mt-8 shadow-md fade-in-animation">
-      <CardHeader>
+    <Card className="mt-8 shadow-md fade-in-animation" ref={resultsCardRef}>
+      <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="text-xl text-primary">{title}</CardTitle>
+        <Button variant="outline" size="sm" onClick={handleSaveAsImage}>
+          <Download className="mr-2 h-4 w-4" />
+          Salvar como Imagem
+        </Button>
       </CardHeader>
       <CardContent className="space-y-4">
         {results.summary && results.summary.length > 0 && (
