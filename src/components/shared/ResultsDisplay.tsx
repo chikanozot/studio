@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { FC } from 'react';
@@ -49,15 +50,29 @@ const ResultsDisplay: FC<ResultsDisplayProps> = ({ title, results }) => {
     }
 
     try {
+      // Ensure the element is not scrolled out of view for accurate capture
+      resultsCardRef.current.scrollIntoView({ behavior: 'instant', block: 'nearest' });
+      
+      // A short delay might help ensure styles are fully applied if there are transitions
+      await new Promise(resolve => setTimeout(resolve, 100));
+
       const canvas = await html2canvas(resultsCardRef.current, {
         scale: 2, // Aumenta a resolução da imagem
         useCORS: true, // Para carregar imagens externas, se houver
-        backgroundColor: null, // Para manter o fundo do card (ou defina uma cor)
+        backgroundColor: '#FFFFFF', // Explicitly set background to white
+        logging: true, // Enable logging for debugging
+        onclone: (documentClone) => {
+          // This is a good place to apply styles that might not be picked up,
+          // or to hide elements like the save button itself during capture
+          const clonedSaveButton = documentClone.querySelector('[data-save-button="true"]');
+          if (clonedSaveButton && clonedSaveButton instanceof HTMLElement) {
+            clonedSaveButton.style.display = 'none';
+          }
+        }
       });
       const image = canvas.toDataURL('image/png');
       const link = document.createElement('a');
       
-      // Criar um nome de arquivo mais descritivo
       const date = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
       const safeTitle = title.toLowerCase().replace(/[^a-z0-9_]+/g, '_').replace(/_$/, '');
       link.download = `orcamento_${safeTitle}_${date}.png`;
@@ -75,7 +90,7 @@ const ResultsDisplay: FC<ResultsDisplayProps> = ({ title, results }) => {
       toast({
         variant: "destructive",
         title: "Erro ao Salvar Imagem",
-        description: "Ocorreu um problema ao tentar gerar a imagem do orçamento.",
+        description: "Ocorreu um problema ao tentar gerar a imagem do orçamento. Verifique o console para detalhes.",
       });
     }
   };
@@ -84,7 +99,7 @@ const ResultsDisplay: FC<ResultsDisplayProps> = ({ title, results }) => {
     <Card className="mt-8 shadow-md fade-in-animation" ref={resultsCardRef}>
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="text-xl text-primary">{title}</CardTitle>
-        <Button variant="outline" size="sm" onClick={handleSaveAsImage}>
+        <Button variant="outline" size="sm" onClick={handleSaveAsImage} data-save-button="true">
           <Download className="mr-2 h-4 w-4" />
           Salvar como Imagem
         </Button>
