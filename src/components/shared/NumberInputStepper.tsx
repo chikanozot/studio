@@ -1,10 +1,9 @@
+
 "use client";
 
 import type { FC } from 'react';
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Minus, Plus } from "lucide-react";
 
 interface NumberInputStepperProps {
   id: string;
@@ -13,7 +12,7 @@ interface NumberInputStepperProps {
   onValueChange: (value: number) => void;
   min?: number;
   max?: number;
-  step?: number;
+  step?: number; // Step remains for potential direct input validation or future use if buttons are re-added
   unit?: string;
   disabled?: boolean;
 }
@@ -25,69 +24,56 @@ const NumberInputStepper: FC<NumberInputStepperProps> = ({
   onValueChange,
   min = 0,
   max,
-  step = 1,
+  step = 1, // Keep step for consistency and potential direct input validation
   unit,
   disabled = false,
 }) => {
-  const handleIncrement = () => {
-    const newValue = Math.min(value + step, max === undefined ? Infinity : max);
-    onValueChange(newValue);
-  };
-
-  const handleDecrement = () => {
-    const newValue = Math.max(value - step, min);
-    onValueChange(newValue);
-  };
-
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let numericValue = parseFloat(e.target.value);
     if (isNaN(numericValue)) {
-      numericValue = min;
+      // If input is not a number, or empty, reset to min or 0 if min is not defined
+      numericValue = min; 
     }
+    // Apply min/max constraints
     if (max !== undefined && numericValue > max) numericValue = max;
     if (numericValue < min) numericValue = min;
+    
     onValueChange(numericValue);
   };
+
+  const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    // Ensure that on blur, if the field is empty or invalid, it resets to a valid number (e.g., min)
+    let numericValue = parseFloat(e.target.value);
+    if (isNaN(numericValue) || e.target.value === '') {
+      onValueChange(min);
+    } else {
+      // Re-apply constraints on blur in case something bypassed onChange
+      if (max !== undefined && numericValue > max) numericValue = max;
+      if (numericValue < min) numericValue = min;
+      onValueChange(numericValue);
+    }
+  };
+
 
   return (
     <div className="space-y-1.5">
       <Label htmlFor={id} className="text-sm font-medium">
         {label} {unit && `(${unit})`}
       </Label>
-      <div className="flex items-center space-x-2">
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={handleDecrement}
-          disabled={disabled || value <= min}
-          className="h-10 w-10 shrink-0"
-          aria-label={`Diminuir ${label}`}
-        >
-          <Minus className="h-4 w-4" />
-        </Button>
-        <Input
-          id={id}
-          type="number"
-          value={value}
-          onChange={handleChange}
-          min={min}
-          max={max}
-          step={step}
-          className="w-full text-center h-10"
-          disabled={disabled}
-          aria-label={label}
-        />
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={handleIncrement}
-          disabled={disabled || (max !== undefined && value >= max)}
-          className="h-10 w-10 shrink-0"
-          aria-label={`Aumentar ${label}`}
-        >
-          <Plus className="h-4 w-4" />
-        </Button>
-      </div>
+      <Input
+        id={id}
+        type="number"
+        value={value}
+        onChange={handleChange}
+        onBlur={handleBlur} // Add onBlur to handle empty or invalid states
+        min={min}
+        max={max}
+        step={step} // step attribute can help with browser's native number input behavior
+        className="w-full h-10" // Removed text-center as it's less relevant without buttons
+        disabled={disabled}
+        aria-label={label}
+        placeholder={`Min: ${min}${max !== undefined ? ', Max: ' + max : ''}`}
+      />
     </div>
   );
 };
