@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { FC } from 'react';
@@ -8,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, Trash2, Calculator, Archive } from "lucide-react"; // Changed ArchiveSink to Archive
+import { Plus, Trash2, Calculator, Archive } from "lucide-react";
 import CountertopItem from './CountertopItem';
 import ResultsDisplay from '../shared/ResultsDisplay';
 import NumberInputStepper from '../shared/NumberInputStepper';
@@ -95,21 +96,39 @@ const KitchenForm: FC = () => {
     const skirtCost = skirtHeight > 0 ? (skirtHeight / 100) * totalFinishLength * stonePrice : 0;
 
     let moldingCost = 0;
-    let topMoldingAreaTotal = 0;
-    let bottomMoldingLengthTotal = 0;
+    let topMoldingLengthForCalc = 0; 
+    let bottomMoldingLengthForCalc = 0;
 
+    // Calculate top molding length (sides WITHOUT finish)
     if (topMoldingWidth > 0) {
       countertops.forEach(c => {
-        topMoldingAreaTotal += ((c.length + c.width) / 100) * (topMoldingWidth / 100);
+        const allSides: ('top' | 'bottom' | 'left' | 'right')[] = ['top', 'bottom', 'left', 'right'];
+        allSides.forEach(side => {
+          if (!c.finishedSides.includes(side)) {
+            if (side === 'top' || side === 'bottom') {
+              topMoldingLengthForCalc += c.length / 100; // meters
+            } else { // 'left' or 'right'
+              topMoldingLengthForCalc += c.width / 100; // meters
+            }
+          }
+        });
       });
-      moldingCost += topMoldingAreaTotal * stonePrice;
+      const topMoldingArea = topMoldingLengthForCalc * (topMoldingWidth / 100); // m²
+      moldingCost += topMoldingArea * stonePrice;
     }
     
+    // Calculate bottom molding length (sides WITH finish)
     if (bottomMoldingWidth > 0) {
-      let sumLengths = 0;
-      countertops.forEach(c => { sumLengths += c.length + c.width; });
-      bottomMoldingLengthTotal = sumLengths * 1.3 / 100; // Add 30%
-      const bottomMoldingArea = bottomMoldingLengthTotal * (bottomMoldingWidth / 100);
+      countertops.forEach(c => {
+        c.finishedSides.forEach(side => {
+          if (side === 'top' || side === 'bottom') {
+            bottomMoldingLengthForCalc += c.length / 100; // meters
+          } else { // 'left' or 'right'
+            bottomMoldingLengthForCalc += c.width / 100; // meters
+          }
+        });
+      });
+      const bottomMoldingArea = bottomMoldingLengthForCalc * (bottomMoldingWidth / 100); // m²
       moldingCost += bottomMoldingArea * stonePrice;
     }
 
@@ -122,12 +141,18 @@ const KitchenForm: FC = () => {
     if (skirtHeight > 0) {
       resultItems.push({ label: 'Saia', value: skirtCost, details: `${skirtHeight}cm altura` });
     }
-    if (topMoldingWidth > 0 || bottomMoldingWidth > 0) {
-      let moldingDetails = [];
-      if (topMoldingWidth > 0) moldingDetails.push(`Superior ${topMoldingWidth}cm`);
-      if (bottomMoldingWidth > 0) moldingDetails.push(`Inferior ${bottomMoldingWidth}cm`);
-      resultItems.push({ label: 'Rodapés', value: moldingCost, details: moldingDetails.join(' & ') });
+    
+    const moldingDetailsParts: string[] = [];
+    if (topMoldingWidth > 0) {
+      moldingDetailsParts.push(`Superior ${topMoldingWidth}cm (${topMoldingLengthForCalc.toFixed(2)}m s/ acab.)`);
     }
+    if (bottomMoldingWidth > 0) {
+      moldingDetailsParts.push(`Inferior ${bottomMoldingWidth}cm (${bottomMoldingLengthForCalc.toFixed(2)}m c/ acab.)`);
+    }
+    if (moldingDetailsParts.length > 0) {
+      resultItems.push({ label: 'Rodapés', value: moldingCost, details: moldingDetailsParts.join('; ') });
+    }
+
     if (cubas.length > 0) {
       resultItems.push({ label: `Cubas (${cubas.length})`, value: cubasCost });
     }
@@ -271,3 +296,4 @@ const KitchenForm: FC = () => {
 };
 
 export default KitchenForm;
+
