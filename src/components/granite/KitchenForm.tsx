@@ -27,12 +27,12 @@ const KitchenForm: FC = () => {
   const [countertops, setCountertops] = useState<Countertop[]>([]);
   const [cubas, setCubas] = useState<Cuba[]>([]);
 
-  const [stonePrice, setStonePrice] = useState<number>(150);
-  const [skirtHeight, setSkirtHeight] = useState<number>(10);
-  const [finishPriceOption, setFinishPriceOption] = useState<string>("80"); // "80", "40", "other"
-  const [customFinishPrice, setCustomFinishPrice] = useState<number>(0);
-  const [topMoldingWidth, setTopMoldingWidth] = useState<number>(5);
-  const [bottomMoldingWidth, setBottomMoldingWidth] = useState<number>(5);
+  const [stonePrice, setStonePrice] = useState<number | null>(null);
+  const [skirtHeight, setSkirtHeight] = useState<number | null>(null);
+  const [finishPriceOption, setFinishPriceOption] = useState<string>("80"); 
+  const [customFinishPrice, setCustomFinishPrice] = useState<number | null>(null);
+  const [topMoldingWidth, setTopMoldingWidth] = useState<number | null>(null);
+  const [bottomMoldingWidth, setBottomMoldingWidth] = useState<number | null>(null);
 
   const [results, setResults] = useState<CalculationResults | null>(null);
 
@@ -45,13 +45,13 @@ const KitchenForm: FC = () => {
 
   const derivedFinishPrice = useMemo(() => {
     if (finishPriceOption === 'other') {
-      return customFinishPrice;
+      return customFinishPrice === null ? 0 : customFinishPrice;
     }
     return parseFloat(finishPriceOption) || 0;
   }, [finishPriceOption, customFinishPrice]);
 
   const addCountertop = () => {
-    setCountertops(prev => [...prev, { id: generateId(), length: 100, width: 50, finishedSides: [], hasWallSupport: false }]);
+    setCountertops(prev => [...prev, { id: generateId(), length: null, width: null, finishedSides: [], hasWallSupport: false }]);
     setResults(null);
   };
 
@@ -83,7 +83,8 @@ const KitchenForm: FC = () => {
       alert('Adicione pelo menos um balcão para calcular o orçamento.');
       return;
     }
-    if (stonePrice <= 0) {
+    const currentStonePrice = stonePrice === null ? 0 : stonePrice;
+    if (currentStonePrice <= 0) {
       alert('Informe o valor da pedra para continuar.');
       return;
     }
@@ -92,60 +93,68 @@ const KitchenForm: FC = () => {
       return;
     }
 
-
     const finishPriceValue = derivedFinishPrice;
+    const currentSkirtHeight = skirtHeight === null ? 0 : skirtHeight;
+    const currentTopMoldingWidth = topMoldingWidth === null ? 0 : topMoldingWidth;
+    const currentBottomMoldingWidth = bottomMoldingWidth === null ? 0 : bottomMoldingWidth;
 
     let totalStoneLinearLength = 0;
     countertops.forEach(c => {
-      totalStoneLinearLength += c.length / 100;
+      totalStoneLinearLength += (c.length === null ? 0 : c.length / 100);
     });
-    const stoneCost = totalStoneLinearLength * stonePrice;
+    const stoneCost = totalStoneLinearLength * currentStonePrice;
 
     let totalFinishLength = 0;
     countertops.forEach(c => {
-      if (c.finishedSides.includes('top')) totalFinishLength += c.length / 100;
-      if (c.finishedSides.includes('bottom')) totalFinishLength += c.length / 100;
-      if (c.finishedSides.includes('left')) totalFinishLength += c.width / 100;
-      if (c.finishedSides.includes('right')) totalFinishLength += c.width / 100;
+      const cLength = c.length === null ? 0 : c.length / 100;
+      const cWidth = c.width === null ? 0 : c.width / 100;
+      if (c.finishedSides.includes('top')) totalFinishLength += cLength;
+      if (c.finishedSides.includes('bottom')) totalFinishLength += cLength;
+      if (c.finishedSides.includes('left')) totalFinishLength += cWidth;
+      if (c.finishedSides.includes('right')) totalFinishLength += cWidth;
     });
     const finishCost = totalFinishLength * finishPriceValue;
 
-    const skirtCost = skirtHeight > 0 ? (skirtHeight / 100) * totalFinishLength * stonePrice : 0;
+    const skirtCost = currentSkirtHeight > 0 ? (currentSkirtHeight / 100) * totalFinishLength * currentStonePrice : 0;
 
     let moldingCost = 0;
     let topMoldingLengthForCalc = 0;
     let bottomMoldingLengthForCalc = 0;
     let bottomMoldingSurcharge = 1.3; // 30% surcharge
 
-    if (topMoldingWidth > 0) {
+    if (currentTopMoldingWidth > 0) {
       countertops.forEach(c => {
+        const cLength = c.length === null ? 0 : c.length / 100;
+        const cWidth = c.width === null ? 0 : c.width / 100;
         const allSides: ('top' | 'bottom' | 'left' | 'right')[] = ['top', 'bottom', 'left', 'right'];
         allSides.forEach(side => {
           if (!c.finishedSides.includes(side)) {
             if (side === 'top' || side === 'bottom') {
-              topMoldingLengthForCalc += c.length / 100;
+              topMoldingLengthForCalc += cLength;
             } else {
-              topMoldingLengthForCalc += c.width / 100;
+              topMoldingLengthForCalc += cWidth;
             }
           }
         });
       });
-      const topMoldingArea = topMoldingLengthForCalc * (topMoldingWidth / 100);
-      moldingCost += topMoldingArea * stonePrice;
+      const topMoldingArea = topMoldingLengthForCalc * (currentTopMoldingWidth / 100);
+      moldingCost += topMoldingArea * currentStonePrice;
     }
 
-    if (bottomMoldingWidth > 0) {
+    if (currentBottomMoldingWidth > 0) {
       countertops.forEach(c => {
+        const cLength = c.length === null ? 0 : c.length / 100;
+        const cWidth = c.width === null ? 0 : c.width / 100;
         c.finishedSides.forEach(side => {
           if (side === 'top' || side === 'bottom') {
-            bottomMoldingLengthForCalc += c.length / 100;
+            bottomMoldingLengthForCalc += cLength;
           } else {
-            bottomMoldingLengthForCalc += c.width / 100;
+            bottomMoldingLengthForCalc += cWidth;
           }
         });
       });
-      const bottomMoldingArea = bottomMoldingLengthForCalc * (bottomMoldingWidth / 100);
-      moldingCost += (bottomMoldingArea * stonePrice) * bottomMoldingSurcharge;
+      const bottomMoldingArea = bottomMoldingLengthForCalc * (currentBottomMoldingWidth / 100);
+      moldingCost += (bottomMoldingArea * currentStonePrice) * bottomMoldingSurcharge;
     }
 
     const cubasCost = cubas.reduce((acc, cuba) => acc + cuba.price, 0);
@@ -166,16 +175,16 @@ const KitchenForm: FC = () => {
     if (totalFinishLength > 0) {
         resultItems.push({ label: 'Acabamento', value: finishCost, details: `${totalFinishLength.toFixed(2)}m linear (R$ ${finishPriceValue.toFixed(2)}/m)` });
     }
-    if (skirtHeight > 0 && totalFinishLength > 0) { // Skirt depends on finished sides length
-      resultItems.push({ label: 'Saia', value: skirtCost, details: `${skirtHeight}cm altura, ${totalFinishLength.toFixed(2)}m comp.` });
+    if (currentSkirtHeight > 0 && totalFinishLength > 0) {
+      resultItems.push({ label: 'Saia', value: skirtCost, details: `${currentSkirtHeight}cm altura, ${totalFinishLength.toFixed(2)}m comp.` });
     }
 
     const moldingDetailsParts: string[] = [];
-    if (topMoldingWidth > 0 && topMoldingLengthForCalc > 0) {
-      moldingDetailsParts.push(`Superior ${topMoldingWidth}cm (${topMoldingLengthForCalc.toFixed(2)}m s/ acab.)`);
+    if (currentTopMoldingWidth > 0 && topMoldingLengthForCalc > 0) {
+      moldingDetailsParts.push(`Superior ${currentTopMoldingWidth}cm (${topMoldingLengthForCalc.toFixed(2)}m s/ acab.)`);
     }
-    if (bottomMoldingWidth > 0 && bottomMoldingLengthForCalc > 0) {
-      moldingDetailsParts.push(`Inferior ${bottomMoldingWidth}cm (${bottomMoldingLengthForCalc.toFixed(2)}m c/ acab., acréscimo 30%)`);
+    if (currentBottomMoldingWidth > 0 && bottomMoldingLengthForCalc > 0) {
+      moldingDetailsParts.push(`Inferior ${currentBottomMoldingWidth}cm (${bottomMoldingLengthForCalc.toFixed(2)}m c/ acab., acréscimo 30%)`);
     }
     if (moldingDetailsParts.length > 0) {
       resultItems.push({ label: 'Rodapés', value: moldingCost, details: moldingDetailsParts.join('; ') });
@@ -192,14 +201,16 @@ const KitchenForm: FC = () => {
     resultItems.push({ label: 'Total', value: totalCost, isTotal: true });
 
     const summaryItems: CalculationResultItem[] = countertops.map((c, i) => {
+      const cLength = c.length === null ? 0 : c.length;
+      const cWidth = c.width === null ? 0 : c.width;
       const finishDetails = c.finishedSides.length > 0 ? c.finishedSides.map(s => {
-        if (s === 'top' || s === 'bottom') return `${c.length}cm (${s})`;
-        return `${c.width}cm (${s})`;
+        if (s === 'top' || s === 'bottom') return `${cLength}cm (${s})`;
+        return `${cWidth}cm (${s})`;
       }).join(', ') : 'Nenhum';
       const supportDetail = c.hasWallSupport ? 'Com suporte.' : 'Sem suporte.';
       return {
         label: `Balcão ${i + 1}`,
-        details: `${c.length}cm x ${c.width}cm. Acabamento: ${finishDetails}. ${supportDetail}`,
+        details: `${cLength}cm x ${cWidth}cm. Acabamento: ${finishDetails}. ${supportDetail}`,
       }
     });
 
@@ -268,19 +279,15 @@ const KitchenForm: FC = () => {
               <CardTitle className="text-xl text-primary">Configurações Gerais</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div>
-                <Label htmlFor="stone-price" className="text-sm font-medium">Valor da pedra (R$/metro linear)</Label>
-                <Input
-                  id="stone-price"
-                  type="number"
-                  value={stonePrice}
-                  onChange={(e) => {setStonePrice(parseFloat(e.target.value) || 0); setResults(null);}}
-                  placeholder="Ex: 150.00"
-                  step="0.01"
-                  min="0"
-                  className="mt-1"
-                />
-              </div>
+               <NumberInputStepper
+                id="stone-price"
+                label="Valor da pedra (R$/metro linear)"
+                unit="R$"
+                value={stonePrice}
+                onValueChange={(val) => {setStonePrice(val); setResults(null);}}
+                min={0}
+                step={0.01}
+              />
                <div>
                 <Label htmlFor="finish-price-option" className="text-sm font-medium">Valor do acabamento por metro linear</Label>
                 <Select value={finishPriceOption} onValueChange={(value) => {setFinishPriceOption(value); setResults(null);}}>
@@ -295,16 +302,14 @@ const KitchenForm: FC = () => {
                 </Select>
                 {finishPriceOption === 'other' && (
                   <div className="mt-2">
-                    <Label htmlFor="custom-finish-price" className="text-sm font-medium">Valor personalizado (R$)</Label>
-                    <Input
-                      id="custom-finish-price"
-                      type="number"
-                      value={customFinishPrice}
-                      onChange={(e) => {setCustomFinishPrice(parseFloat(e.target.value) || 0); setResults(null);}}
-                      placeholder="Ex: 65.00"
-                      step="0.01"
-                      min="0"
-                      className="mt-1"
+                    <NumberInputStepper
+                        id="custom-finish-price"
+                        label="Valor personalizado do acabamento"
+                        unit="R$"
+                        value={customFinishPrice}
+                        onValueChange={(val) => {setCustomFinishPrice(val); setResults(null);}}
+                        min={0}
+                        step={0.01}
                     />
                   </div>
                 )}

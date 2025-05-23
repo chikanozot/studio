@@ -1,10 +1,10 @@
+
 "use client";
 
 import type { FC } from 'react';
 import { useState } from 'react';
 import type { CalculationResults, CalculationResultItem } from '@/types';
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -25,32 +25,37 @@ const finishTypes: FinishTypeOption[] = [
 ];
 
 const TombstoneForm: FC = () => {
-  const [length, setLength] = useState<number>(200);
-  const [width, setWidth] = useState<number>(100);
-  const [height, setHeight] = useState<number>(80);
+  const [length, setLength] = useState<number | null>(null);
+  const [width, setWidth] = useState<number | null>(null);
+  const [height, setHeight] = useState<number | null>(null);
   const [finishTypeValue, setFinishTypeValue] = useState<string>('padrao');
-  const [stonePrice, setStonePrice] = useState<number>(400);
+  const [stonePrice, setStonePrice] = useState<number | null>(null);
   const [results, setResults] = useState<CalculationResults | null>(null);
 
   const handleCalculation = () => {
-    if (length <= 0 || width <= 0 || height <= 0) {
+    const currentLength = length === null ? 0 : length;
+    const currentWidth = width === null ? 0 : width;
+    const currentHeight = height === null ? 0 : height;
+    const currentStonePriceVal = stonePrice === null ? 0 : stonePrice;
+
+    if (currentLength <= 0 || currentWidth <= 0 || currentHeight <= 0) {
       alert('Informe todas as medidas do túmulo para continuar.');
       return;
     }
-    if (stonePrice <= 0) {
+    if (currentStonePriceVal <= 0) {
       alert('Informe o valor da pedra para continuar.');
       return;
     }
 
-    const lengthM = length / 100;
-    const widthM = width / 100;
-    const heightM = height / 100;
+    const lengthM = currentLength / 100;
+    const widthM = currentWidth / 100;
+    const heightM = currentHeight / 100;
 
     const topArea = lengthM * widthM;
     const frontBackArea = 2 * lengthM * heightM;
     const sideArea = 2 * widthM * heightM;
     const totalStoneArea = topArea + frontBackArea + sideArea;
-    const currentStoneCost = totalStoneArea * stonePrice;
+    const currentStoneCost = totalStoneArea * currentStonePriceVal;
 
     const selectedFinish = finishTypes.find(f => f.value === finishTypeValue);
     const finishPricePerMeter = selectedFinish ? selectedFinish.pricePerMeter : 0;
@@ -62,7 +67,7 @@ const TombstoneForm: FC = () => {
     const totalCost = currentStoneCost + currentFinishCost;
 
     const summaryItems: CalculationResultItem[] = [
-        { label: "Medidas", details: `${length}cm (C) x ${width}cm (L) x ${height}cm (A)`},
+        { label: "Medidas", details: `${currentLength}cm (C) x ${currentWidth}cm (L) x ${currentHeight}cm (A)`},
         { label: "Área da Pedra", 
           details: `Topo: ${topArea.toFixed(2)}m², Frente/Trás: ${frontBackArea.toFixed(2)}m², Lados: ${sideArea.toFixed(2)}m². Total: ${totalStoneArea.toFixed(2)}m²`
         },
@@ -93,7 +98,7 @@ const TombstoneForm: FC = () => {
                 label="Comprimento"
                 unit="cm"
                 value={length}
-                onValueChange={setLength}
+                onValueChange={(val) => {setLength(val); setResults(null);}}
                 min={10}
               />
               <NumberInputStepper
@@ -101,7 +106,7 @@ const TombstoneForm: FC = () => {
                 label="Largura"
                 unit="cm"
                 value={width}
-                onValueChange={setWidth}
+                onValueChange={(val) => {setWidth(val); setResults(null);}}
                 min={10}
               />
               <NumberInputStepper
@@ -109,12 +114,12 @@ const TombstoneForm: FC = () => {
                 label="Altura"
                 unit="cm"
                 value={height}
-                onValueChange={setHeight}
+                onValueChange={(val) => {setHeight(val); setResults(null);}}
                 min={10}
               />
               <div>
                 <Label htmlFor="tumulo-finish" className="text-sm font-medium">Tipo de Acabamento</Label>
-                <Select value={finishTypeValue} onValueChange={setFinishTypeValue}>
+                <Select value={finishTypeValue} onValueChange={(val) => {setFinishTypeValue(val); setResults(null);}}>
                   <SelectTrigger id="tumulo-finish" className="w-full mt-1">
                     <SelectValue placeholder="Selecione o tipo de acabamento" />
                   </SelectTrigger>
@@ -138,18 +143,15 @@ const TombstoneForm: FC = () => {
               <CardTitle className="text-xl text-primary">Configurações Gerais</CardTitle>
             </CardHeader>
             <CardContent>
-              <div>
-                <Label htmlFor="tumulo-stone-price" className="text-sm font-medium">Valor da pedra (R$/metro quadrado)</Label>
-                <Input
+              <NumberInputStepper
                   id="tumulo-stone-price"
-                  type="number"
+                  label="Valor da pedra (R$/metro quadrado)"
+                  unit="R$"
                   value={stonePrice}
-                  onChange={(e) => setStonePrice(parseFloat(e.target.value) || 0)}
-                  placeholder="Ex: 400.00"
+                  onValueChange={(val) => {setStonePrice(val); setResults(null);}}
                   step="0.01"
-                  className="mt-1"
+                  min={0}
                 />
-              </div>
             </CardContent>
           </Card>
           <Button onClick={handleCalculation} size="lg" className="w-full bg-accent text-accent-foreground hover:bg-accent/90">

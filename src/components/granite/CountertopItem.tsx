@@ -20,7 +20,7 @@ interface CountertopItemProps {
 
 const SideButton: FC<{
   label: string;
-  dimension: number;
+  dimension: number | null; // Allow null
   isSelected: boolean;
   onClick: () => void;
   className?: string;
@@ -37,13 +37,13 @@ const SideButton: FC<{
     aria-pressed={isSelected}
     aria-label={`Selecionar lado ${label.toLowerCase()}`}
   >
-    {dimension} cm
+    {dimension === null ? "-" : `${dimension} cm`}
   </Button>
 );
 
 
 const CountertopItem: FC<CountertopItemProps> = ({ countertop, index, onUpdate, onRemove }) => {
-  const handleDimensionChange = (field: 'length' | 'width', value: number) => {
+  const handleDimensionChange = (field: 'length' | 'width', value: number | null) => {
     onUpdate(countertop.id, { [field]: value });
   };
 

@@ -18,7 +18,7 @@ interface ThresholdItemProps {
 }
 
 const ThresholdItem: FC<ThresholdItemProps> = ({ item, index, onUpdate, onRemove }) => {
-  const handleDimensionChange = (field: 'length' | 'width', value: number) => {
+  const handleDimensionChange = (field: 'length' | 'width', value: number | null) => {
     onUpdate(item.id, { [field]: value });
   };
 
@@ -27,6 +27,7 @@ const ThresholdItem: FC<ThresholdItemProps> = ({ item, index, onUpdate, onRemove
   };
 
   const itemTypeName = item.type === 'soleira' ? 'Soleira' : 'Pingadeira';
+  const itemWidth = item.width === null ? 0 : item.width;
 
   return (
     <Card className="mb-4 bg-secondary/30 shadow-sm fade-in-animation">
@@ -75,7 +76,7 @@ const ThresholdItem: FC<ThresholdItemProps> = ({ item, index, onUpdate, onRemove
           </Select>
         </div>
         {item.type === 'pingadeira' && (
-          <p className="text-xs text-muted-foreground">Largura efetiva para cálculo da pedra: {item.width + 2}cm (inclui 2cm para pingadeira)</p>
+          <p className="text-xs text-muted-foreground">Largura efetiva para cálculo da pedra: {itemWidth + 2}cm (inclui 2cm para pingadeira)</p>
         )}
       </CardContent>
     </Card>

@@ -9,8 +9,8 @@ import { Label } from "@/components/ui/label";
 interface NumberInputStepperProps {
   id: string;
   label: string;
-  value: number;
-  onValueChange: (value: number) => void;
+  value: number | null; // Allow null for empty state
+  onValueChange: (value: number | null) => void; // Allow null for empty state
   min?: number;
   max?: number;
   step?: number;
@@ -23,54 +23,60 @@ const NumberInputStepper: FC<NumberInputStepperProps> = ({
   label,
   value,
   onValueChange,
-  min = 0,
+  min = 0, // Default min to 0, adjust as needed per usage
   max,
   step = 1,
   unit,
   disabled = false,
 }) => {
-  const [inputValue, setInputValue] = useState<string>(String(value));
+  const [inputValue, setInputValue] = useState<string>(value === null ? "" : String(value));
 
   useEffect(() => {
-    // Update inputValue if the external value prop changes and differs from
-    // what inputValue currently represents or would parse to.
-    // This handles external state updates (e.g., form resets).
-    const currentNumericInputValue = parseFloat(inputValue);
-    if (value !== currentNumericInputValue) {
-      // If `value` is different from parsed `inputValue`, or if `inputValue` is not a number
-      // (e.g. empty or "abc") and `value` has changed, then update `inputValue`.
-      if (isNaN(currentNumericInputValue) || value !== currentNumericInputValue) {
-         setInputValue(String(value));
+    // This effect synchronizes the input field when the `value` prop changes externally.
+    if (value === null) {
+      if (inputValue !== "") { // Only update if inputValue isn't already empty
+        setInputValue("");
       }
-    } else if (inputValue === '' && value === min) {
-      // Handles case where input was cleared, blurred, reset to min,
-      // and we need to ensure inputValue reflects this min.
-      setInputValue(String(value));
+    } else {
+      const currentNumericInputValue = parseFloat(inputValue);
+      // Update inputValue if the numeric value of the input doesn't match the prop value,
+      // or if the input is not a number (e.g., was just cleared by user).
+      if (value !== currentNumericInputValue || isNaN(currentNumericInputValue)) {
+        setInputValue(String(value));
+      }
     }
-  }, [value, min]); // Note: `inputValue` is not in dependency array to avoid loops with internal updates.
+  }, [value]); // Only react to external `value` prop changes.
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInputValue(e.target.value); // Allow any string input temporarily
   };
 
   const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
-    let numericValue = parseFloat(inputValue);
+    const trimmedValue = inputValue.trim();
 
-    if (inputValue.trim() === '' || isNaN(numericValue)) {
-      numericValue = min; // Reset to min if empty or NaN
-    } else {
-      if (max !== undefined && numericValue > max) numericValue = max;
-      if (numericValue < min) numericValue = min;
+    if (trimmedValue === '') {
+      setInputValue(""); 
+      onValueChange(null); 
+      return;
     }
-    
-    // Ensure that the final value is a valid number according to step if necessary
-    // For simplicity, we're not enforcing step validation strictly on blur here,
-    // but it could be added if required: numericValue = Math.round(numericValue / step) * step;
 
+    let numericValue = parseFloat(trimmedValue);
+
+    if (isNaN(numericValue)) {
+      setInputValue(""); 
+      onValueChange(null);
+      return;
+    }
+
+    // Apply min/max clamping
+    if (min !== undefined && numericValue < min) numericValue = min;
+    if (max !== undefined && numericValue > max) numericValue = max;
+    
+    // Optional: step validation (rounding to nearest step)
+    // if (step) numericValue = Math.round(numericValue / step) * step;
+
+    setInputValue(String(numericValue));
     onValueChange(numericValue);
-    // Update inputValue to reflect the validated and possibly corrected numeric value
-    // This ensures the input field shows the canonical value after blur.
-    setInputValue(String(numericValue)); 
   };
 
   return (
@@ -80,15 +86,16 @@ const NumberInputStepper: FC<NumberInputStepperProps> = ({
       </Label>
       <Input
         id={id}
-        type="number" // Keeps numeric keyboard on mobile and basic browser number handling
-        value={inputValue} // Bind to local string state
+        type="number"
+        value={inputValue}
         onChange={handleChange}
         onBlur={handleBlur}
-        step={step}
+        // Do not pass step to native input if we handle it manually, or pass if desired
+        // step={step} // Browser might interfere with manual step logic on blur
         className="w-full h-10"
         disabled={disabled}
         aria-label={label}
-        placeholder={`Min: ${min}${max !== undefined ? ', Max: ' + max : ''}`}
+        placeholder={min !== undefined ? `Mín: ${min}${max !== undefined ? ', Máx: ' + max : ''}` : ''}
       />
     </div>
   );

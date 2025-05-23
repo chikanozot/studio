@@ -9,7 +9,6 @@ import { Trash2, GripVertical } from "lucide-react";
 import NumberInputStepper from "@/components/shared/NumberInputStepper";
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-// import { Input } from '@/components/ui/input'; // Not needed here anymore for finish price
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 
@@ -18,13 +17,12 @@ interface WashbasinItemProps {
   index: number;
   onUpdate: (id: string, updates: Partial<WashbasinItemType>) => void;
   onRemove: (id: string) => void;
-  finishPrice: number; // Receives the derived global finish price
-  // onFinishPriceChange prop is removed as the logic is now global in WashbasinForm
+  finishPrice: number; 
 }
 
 const SideButton: FC<{
   label: string;
-  dimension: number;
+  dimension: number | null; // Allow null
   isSelected: boolean;
   onClick: () => void;
   className?: string;
@@ -43,7 +41,7 @@ const SideButton: FC<{
     aria-label={`Selecionar lado ${label.toLowerCase()}`}
     disabled={disabled}
   >
-    {dimension} cm
+    {dimension === null ? "-" : `${dimension} cm`}
   </Button>
 );
 
@@ -52,10 +50,10 @@ const WashbasinItem: FC<WashbasinItemProps> = ({
   index,
   onUpdate,
   onRemove,
-  finishPrice, // Consumes the globally determined finish price
+  finishPrice, 
 }) => {
 
-  const handleDimensionChange = (field: 'length' | 'width', value: number) => {
+  const handleDimensionChange = (field: 'length' | 'width' | 'skirtHeight' | 'topMoldingWidth' | 'bottomMoldingWidth', value: number | null) => {
     onUpdate(item.id, { [field]: value });
   };
 
@@ -124,7 +122,8 @@ const WashbasinItem: FC<WashbasinItemProps> = ({
           min={10}
         />
 
-        <>
+        {/* Fields for all calculation types */}
+        <> 
           <div>
             <p className="text-sm font-medium mb-2 text-foreground">Lados da bancada com acabamento:</p>
             <p className="text-xs text-muted-foreground mb-1">Usado para calcular acabamento da bancada, rodapés e saia.</p>
@@ -179,7 +178,7 @@ const WashbasinItem: FC<WashbasinItemProps> = ({
             label="Altura da saia (Opcional)"
             unit="cm"
             value={item.skirtHeight}
-            onValueChange={(val) => onUpdate(item.id, { skirtHeight: val })}
+            onValueChange={(val) => handleDimensionChange('skirtHeight', val)}
             min={0}
           />
 
@@ -189,7 +188,7 @@ const WashbasinItem: FC<WashbasinItemProps> = ({
             label="Rodapé em cima da bancada (largura)"
             unit="cm"
             value={item.topMoldingWidth}
-            onValueChange={(val) => onUpdate(item.id, { topMoldingWidth: val })}
+            onValueChange={(val) => handleDimensionChange('topMoldingWidth', val)}
             min={0}
           />
           <NumberInputStepper
@@ -197,7 +196,7 @@ const WashbasinItem: FC<WashbasinItemProps> = ({
             label="Rodapé embaixo do móvel (largura)"
             unit="cm"
             value={item.bottomMoldingWidth}
-            onValueChange={(val) => onUpdate(item.id, { bottomMoldingWidth: val })}
+            onValueChange={(val) => handleDimensionChange('bottomMoldingWidth', val)}
             min={0}
           />
           <div className="flex items-center space-x-2 pt-2">
@@ -211,7 +210,6 @@ const WashbasinItem: FC<WashbasinItemProps> = ({
             </Label>
           </div>
         </>
-
       </CardContent>
     </Card>
   );
