@@ -20,13 +20,14 @@ const formatCurrency = (value: number) => {
 };
 
 const ResultItem: FC<{ item: CalculationResultItem }> = ({ item }) => (
-  <div 
+  <div
     className={`flex justify-between py-2 ${item.isTotal ? 'border-t pt-3 mt-2' : ''}`}
     data-testid="result-item"
+    data-is-total={item.isTotal ? "true" : "false"}
   >
-    <span 
+    <span
       className={item.isTotal ? 'font-semibold text-lg' : 'text-sm'}
-      data-label-text={item.label} // Added for easier access in onclone
+      data-label-text={item.label}
     >
       {item.label}
       {item.details && <span className="text-xs text-muted-foreground ml-1" data-result-detail="true">{item.details}</span>}
@@ -57,12 +58,12 @@ const ResultsDisplay: FC<ResultsDisplayProps> = ({ title, results }) => {
 
     try {
       resultsCardRef.current.scrollIntoView({ behavior: 'instant', block: 'nearest' });
-      await new Promise(resolve => setTimeout(resolve, 300)); 
+      await new Promise(resolve => setTimeout(resolve, 300));
 
       const canvas = await html2canvas(resultsCardRef.current, {
         scale: 2,
         useCORS: true,
-        backgroundColor: '#FFFFFF', 
+        backgroundColor: '#FFFFFF',
         logging: true,
         onclone: (documentClone) => {
           const cardToClone = documentClone.querySelector('[data-testid="results-card-for-capture"]');
@@ -75,12 +76,12 @@ const ResultsDisplay: FC<ResultsDisplayProps> = ({ title, results }) => {
               if (el instanceof HTMLElement) {
                 if (['SPAN', 'P', 'DIV', 'H3', 'H5', 'STRONG', 'B'].includes(el.tagName)) {
                    el.style.setProperty('color', 'black', 'important');
-                   el.style.webkitTextFillColor = 'black'; 
+                   el.style.webkitTextFillColor = 'black';
                 }
               }
               if (el instanceof SVGElement) {
                 el.style.setProperty('fill', 'black', 'important');
-                el.style.setProperty('stroke', 'black', 'important'); 
+                el.style.setProperty('stroke', 'black', 'important');
                 el.querySelectorAll('*').forEach(svgChild => {
                     if (svgChild instanceof SVGElement) {
                         svgChild.style.setProperty('fill', 'black', 'important');
@@ -90,13 +91,11 @@ const ResultsDisplay: FC<ResultsDisplayProps> = ({ title, results }) => {
               }
             });
 
-            // Hide the summary section in the cloned document
             const summarySection = cardToClone.querySelector('[data-testid="results-summary-section"]');
             if (summarySection && summarySection instanceof HTMLElement) {
               summarySection.style.display = 'none';
             }
 
-            // Hide specific detail spans (measurement/calculation basis) in the cloned document
             const detailSpans = cardToClone.querySelectorAll('[data-result-detail="true"]');
             detailSpans.forEach(span => {
               if (span instanceof HTMLElement) {
@@ -104,20 +103,21 @@ const ResultsDisplay: FC<ResultsDisplayProps> = ({ title, results }) => {
               }
             });
 
-            // Filter result items to show only Cuba-related and Total Geral
             const resultItems = cardToClone.querySelectorAll('[data-testid="result-item"]');
             resultItems.forEach(itemElement => {
               const htmlItemElement = itemElement as HTMLElement;
               const labelSpan = htmlItemElement.querySelector('span[data-label-text]');
+              const isMarkedAsTotal = htmlItemElement.getAttribute('data-is-total') === 'true';
+
               if (labelSpan) {
                 const labelText = (labelSpan.getAttribute('data-label-text') || '').trim().toLowerCase();
-                
-                const isGrandTotal = labelText.startsWith('total geral');
                 const isCubaRelated = labelText.includes('cuba') || labelText.includes('cubas');
-            
-                if (!isGrandTotal && !isCubaRelated) {
+
+                if (!isMarkedAsTotal && !isCubaRelated) {
                   htmlItemElement.style.display = 'none';
                 }
+              } else if (!isMarkedAsTotal) { // If no label span but it's not total, hide it
+                  htmlItemElement.style.display = 'none';
               }
             });
           }
@@ -130,11 +130,11 @@ const ResultsDisplay: FC<ResultsDisplayProps> = ({ title, results }) => {
       });
       const image = canvas.toDataURL('image/png');
       const link = document.createElement('a');
-      
-      const date = new Date().toISOString().split('T')[0]; 
+
+      const date = new Date().toISOString().split('T')[0];
       const safeTitle = title.toLowerCase().replace(/[^a-z0-9_]+/g, '_').replace(/_$/, '');
       link.download = `orcamento_${safeTitle}_${date}.png`;
-      
+
       link.href = image;
       document.body.appendChild(link);
       link.click();
@@ -154,9 +154,9 @@ const ResultsDisplay: FC<ResultsDisplayProps> = ({ title, results }) => {
   };
 
   return (
-    <Card 
-      className="mt-8 shadow-md fade-in-animation" 
-      ref={resultsCardRef} 
+    <Card
+      className="mt-8 shadow-md fade-in-animation"
+      ref={resultsCardRef}
       data-testid="results-card-for-capture"
     >
       <CardHeader className="flex flex-row items-center justify-between">
@@ -186,4 +186,3 @@ const ResultsDisplay: FC<ResultsDisplayProps> = ({ title, results }) => {
 };
 
 export default ResultsDisplay;
-
