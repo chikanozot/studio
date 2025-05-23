@@ -98,6 +98,7 @@ const KitchenForm: FC = () => {
     let moldingCost = 0;
     let topMoldingLengthForCalc = 0; 
     let bottomMoldingLengthForCalc = 0;
+    let bottomMoldingSurcharge = 1.3; // 30% surcharge
 
     // Calculate top molding length (sides WITHOUT finish)
     if (topMoldingWidth > 0) {
@@ -129,7 +130,7 @@ const KitchenForm: FC = () => {
         });
       });
       const bottomMoldingArea = bottomMoldingLengthForCalc * (bottomMoldingWidth / 100); // m²
-      moldingCost += bottomMoldingArea * stonePrice;
+      moldingCost += (bottomMoldingArea * stonePrice) * bottomMoldingSurcharge;
     }
 
     const cubasCost = cubas.reduce((acc, cuba) => acc + cuba.price, 0);
@@ -147,7 +148,7 @@ const KitchenForm: FC = () => {
       moldingDetailsParts.push(`Superior ${topMoldingWidth}cm (${topMoldingLengthForCalc.toFixed(2)}m s/ acab.)`);
     }
     if (bottomMoldingWidth > 0) {
-      moldingDetailsParts.push(`Inferior ${bottomMoldingWidth}cm (${bottomMoldingLengthForCalc.toFixed(2)}m c/ acab.)`);
+      moldingDetailsParts.push(`Inferior ${bottomMoldingWidth}cm (${bottomMoldingLengthForCalc.toFixed(2)}m c/ acab., acréscimo 30%)`);
     }
     if (moldingDetailsParts.length > 0) {
       resultItems.push({ label: 'Rodapés', value: moldingCost, details: moldingDetailsParts.join('; ') });
