@@ -26,22 +26,27 @@ export type WashbasinCalculationType = 'sem_cuba' | 'cuba_esculpida' | 'cuba_emb
 
 export type FinishedSide = 'top' | 'bottom' | 'left' | 'right';
 
-export interface WashbasinFormData {
+export interface WashbasinItem {
+  id: string;
   calculationType: WashbasinCalculationType;
   length: number;
   width: number;
-  stonePrice: number; // Can be per m² or per linear meter depending on calculationType
   
   // Specific to "Sem Cuba"
-  skirtHeight?: number;
-  topMoldingWidth?: number;
-  bottomMoldingWidth?: number;
-  finishedSides?: FinishedSide[];
-  finishPrice?: number; // Price per linear meter for finish
-
-  // Specific to "Cuba Esculpida" & "Cuba Embutida"
-  // No extra fields needed beyond type differentiation, constants will be used.
+  skirtHeight: number; // Made non-optional for "Sem Cuba" context, assuming default 0
+  topMoldingWidth: number; // Made non-optional
+  bottomMoldingWidth: number; // Made non-optional
+  finishedSides: FinishedSide[];
+  hasWallSupport: boolean; // Made non-optional
 }
+
+// This FormData might be less used directly if all global settings are in WashbasinForm state
+export interface WashbasinFormData {
+  items: WashbasinItem[];
+  stonePrice: number; // Can be per m² or per linear meter depending on calculationType
+  finishPrice: number; // Price per linear meter for finish (relevant for "Sem Cuba")
+}
+
 
 export interface CalculationResultItem {
   label: string;
