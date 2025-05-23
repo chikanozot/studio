@@ -14,7 +14,7 @@ import WashbasinItem from './WashbasinItem';
 import NumberInputStepper from '../shared/NumberInputStepper';
 
 const SCULPTED_SINK_LABOR_COST = 400;
-const SCULPTED_SINK_MATERIAL_METERS = 0.5; // Factor for material cost based on stonePrice (interpreted as m² rate)
+const SCULPTED_SINK_MATERIAL_METERS = 0.5; 
 const BUILT_IN_SINK_COST = 130;
 const WALL_SUPPORT_PRICE = 70;
 
@@ -34,7 +34,7 @@ const defaultWashbasinItem: () => WashbasinItemType = () => ({
 
 const WashbasinForm: FC = () => {
   const [washbasinItems, setWashbasinItems] = useState<WashbasinItemType[]>([]);
-  const [stonePrice, setStonePrice] = useState<number | null>(null); // Unified stone price
+  const [stonePrice, setStonePrice] = useState<number | null>(null); 
   
   const [globalFinishPriceOption, setGlobalFinishPriceOption] = useState<string>("80"); 
   const [customGlobalFinishPrice, setCustomGlobalFinishPrice] = useState<number | null>(null);
@@ -46,7 +46,7 @@ const WashbasinForm: FC = () => {
       addWashbasinItem();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Ensuring only one item is added if the list is empty
+  }, []); 
 
   const derivedGlobalFinishPrice = useMemo(() => {
     if (globalFinishPriceOption === 'other') {
@@ -124,11 +124,11 @@ const WashbasinForm: FC = () => {
       // Bancada Cost
       if (item.calculationType === 'sem_cuba') {
         const countertopArea = lengthM * widthM;
-        const countertopStoneCost = countertopArea * currentStonePrice;
+        const countertopStoneCost = countertopArea * currentStonePrice; // Uses unified stonePrice as R$/m²
         itemResultItems.push({ label: 'Pedra (Bancada)', value: countertopStoneCost, details: `${countertopArea.toFixed(3)}m² (R$ ${currentStonePrice.toFixed(2)}/m²)` });
         itemTotalCost += countertopStoneCost;
       } else { // 'cuba_esculpida' or 'cuba_embutida'
-        const countertopLinearCost = lengthM * currentStonePrice;
+        const countertopLinearCost = lengthM * currentStonePrice; // Uses unified stonePrice as R$/m linear
         itemResultItems.push({ label: 'Pedra (Bancada)', value: countertopLinearCost, details: `${lengthM.toFixed(2)}m linear (R$ ${currentStonePrice.toFixed(2)}/m linear)` });
         itemTotalCost += countertopLinearCost;
 
@@ -137,9 +137,8 @@ const WashbasinForm: FC = () => {
           itemTotalCost += SCULPTED_SINK_LABOR_COST;
           itemSummaryItems.push({ label: `${itemLabelPrefix} - Cuba Esculpida (M.O.)`, details: `R$ ${SCULPTED_SINK_LABOR_COST.toFixed(2)}`});
           
-          // Material adicional da cuba esculpida é por m² (baseado no stonePrice unificado)
-          const sinkMaterialCost = SCULPTED_SINK_MATERIAL_METERS * currentStonePrice; 
-          itemResultItems.push({ label: 'Material Adicional Cuba Esculpida', value: sinkMaterialCost, details: `${SCULPTED_SINK_MATERIAL_METERS} x (R$ ${currentStonePrice.toFixed(2)} como valor/m²)` });
+          const sinkMaterialCost = SCULPTED_SINK_MATERIAL_METERS * currentStonePrice; // Uses unified stonePrice as R$/m² for material
+          itemResultItems.push({ label: 'Material Adicional Cuba Esculpida', value: sinkMaterialCost, details: `${SCULPTED_SINK_MATERIAL_METERS} x (R$ ${currentStonePrice.toFixed(2)}/m²)` });
           itemTotalCost += sinkMaterialCost;
           itemSummaryItems.push({ label: `${itemLabelPrefix} - Cuba Esculpida (Material)`, details: `${SCULPTED_SINK_MATERIAL_METERS} x pedra (base m²)`});
 
@@ -164,7 +163,8 @@ const WashbasinForm: FC = () => {
         itemResultItems.push({ label: 'Acabamento da Bancada', value: currentFinishCost, details: `${totalFinishLengthMeters.toFixed(2)}m linear (R$ ${currentItemFinishPrice.toFixed(2)}/m)` });
         itemTotalCost += currentFinishCost;
         itemSummaryItems.push({ label: `${itemLabelPrefix} - Acabamento Bancada`, details: `Lados: ${finishedSidesSummary.join(', ')} (${totalFinishLengthMeters.toFixed(2)}m)`});
-      } else if (totalFinishLengthMeters > 0 && currentItemFinishPrice <= 0) {
+      } else if (totalFinishLengthMeters > 0 && currentItemFinishPrice <= 0 && item.calculationType !== 'cuba_esculpida') { 
+         // For cuba_esculpida, finish is separate or included in labor. For others, alert if finish selected but price is 0.
          alert(`Para o Lavatório ${index + 1}, informe o valor do acabamento da bancada (na seção Configurações Globais), pois há lados selecionados.`);
       }
 
@@ -181,7 +181,7 @@ const WashbasinForm: FC = () => {
 
         if (skirtBaseLengthMeters > 0) {
           const skirtArea = (itemSkirtHeight / 100) * skirtBaseLengthMeters;
-          const currentSkirtCost = skirtArea * currentStonePrice; 
+          const currentSkirtCost = skirtArea * currentStonePrice; // Uses unified stonePrice as R$/m²
           itemResultItems.push({ label: 'Saia', value: currentSkirtCost, details: `${itemSkirtHeight}cm altura, ${skirtBaseLengthMeters.toFixed(2)}m comp., ${skirtArea.toFixed(3)}m² (R$ ${currentStonePrice.toFixed(2)}/m²)` });
           itemTotalCost += currentSkirtCost;
           itemSummaryItems.push({ label: `${itemLabelPrefix} - Saia`, details: `${itemSkirtHeight}cm altura, ${skirtBaseLengthMeters.toFixed(2)}m comp.`});
@@ -198,7 +198,7 @@ const WashbasinForm: FC = () => {
         if (item.finishedSides.includes(side)) {
           bottomMoldingLengthForCalc += sideLengthM;
         } else {
-          if (lengthM > 0 || widthM > 0) { // Only add to topMolding if dimensions exist
+          if (lengthM > 0 || widthM > 0) { 
             topMoldingLengthForCalc += sideLengthM;
           }
         }
@@ -209,13 +209,13 @@ const WashbasinForm: FC = () => {
       const moldingDetailsParts: string[] = [];
       if (itemTopMoldingWidth > 0 && topMoldingLengthForCalc > 0) {
         const topMoldingArea = (itemTopMoldingWidth / 100) * topMoldingLengthForCalc;
-        const topMoldingCost = topMoldingArea * currentStonePrice; 
+        const topMoldingCost = topMoldingArea * currentStonePrice; // Uses unified stonePrice as R$/m²
         itemMoldingCost += topMoldingCost;
         moldingDetailsParts.push(`Superior ${itemTopMoldingWidth}cm (${topMoldingLengthForCalc.toFixed(2)}m s/ acab. bancada, ${topMoldingArea.toFixed(3)}m² a R$ ${currentStonePrice.toFixed(2)}/m²)`);
       }
       if (itemBottomMoldingWidth > 0 && bottomMoldingLengthForCalc > 0) {
         const bottomMoldingArea = (itemBottomMoldingWidth / 100) * bottomMoldingLengthForCalc;
-        const bottomMoldingBaseCost = bottomMoldingArea * currentStonePrice; 
+        const bottomMoldingBaseCost = bottomMoldingArea * currentStonePrice; // Uses unified stonePrice as R$/m²
         const bottomMoldingFinalCost = bottomMoldingBaseCost * 1.30; 
         itemMoldingCost += bottomMoldingFinalCost;
         moldingDetailsParts.push(`Inferior ${itemBottomMoldingWidth}cm (${bottomMoldingLengthForCalc.toFixed(2)}m c/ acab. bancada, ${bottomMoldingArea.toFixed(3)}m² a R$ ${currentStonePrice.toFixed(2)}/m², acréscimo 30%)`);
