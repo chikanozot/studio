@@ -2,6 +2,7 @@
 "use client";
 
 import type { FC } from 'react';
+import { useState, useEffect } from 'react';
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -12,7 +13,7 @@ interface NumberInputStepperProps {
   onValueChange: (value: number) => void;
   min?: number;
   max?: number;
-  step?: number; // Step remains for potential direct input validation or future use if buttons are re-added
+  step?: number;
   unit?: string;
   disabled?: boolean;
 }
@@ -24,36 +25,53 @@ const NumberInputStepper: FC<NumberInputStepperProps> = ({
   onValueChange,
   min = 0,
   max,
-  step = 1, // Keep step for consistency and potential direct input validation
+  step = 1,
   unit,
   disabled = false,
 }) => {
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let numericValue = parseFloat(e.target.value);
-    if (isNaN(numericValue)) {
-      // If input is not a number, or empty, reset to min or 0 if min is not defined
-      numericValue = min; 
+  const [inputValue, setInputValue] = useState<string>(String(value));
+
+  useEffect(() => {
+    // Update inputValue if the external value prop changes and differs from
+    // what inputValue currently represents or would parse to.
+    // This handles external state updates (e.g., form resets).
+    const currentNumericInputValue = parseFloat(inputValue);
+    if (value !== currentNumericInputValue) {
+      // If `value` is different from parsed `inputValue`, or if `inputValue` is not a number
+      // (e.g. empty or "abc") and `value` has changed, then update `inputValue`.
+      if (isNaN(currentNumericInputValue) || value !== currentNumericInputValue) {
+         setInputValue(String(value));
+      }
+    } else if (inputValue === '' && value === min) {
+      // Handles case where input was cleared, blurred, reset to min,
+      // and we need to ensure inputValue reflects this min.
+      setInputValue(String(value));
     }
-    // Apply min/max constraints
-    if (max !== undefined && numericValue > max) numericValue = max;
-    if (numericValue < min) numericValue = min;
-    
-    onValueChange(numericValue);
+  }, [value, min]); // Note: `inputValue` is not in dependency array to avoid loops with internal updates.
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setInputValue(e.target.value); // Allow any string input temporarily
   };
 
   const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
-    // Ensure that on blur, if the field is empty or invalid, it resets to a valid number (e.g., min)
-    let numericValue = parseFloat(e.target.value);
-    if (isNaN(numericValue) || e.target.value === '') {
-      onValueChange(min);
+    let numericValue = parseFloat(inputValue);
+
+    if (inputValue.trim() === '' || isNaN(numericValue)) {
+      numericValue = min; // Reset to min if empty or NaN
     } else {
-      // Re-apply constraints on blur in case something bypassed onChange
       if (max !== undefined && numericValue > max) numericValue = max;
       if (numericValue < min) numericValue = min;
-      onValueChange(numericValue);
     }
-  };
+    
+    // Ensure that the final value is a valid number according to step if necessary
+    // For simplicity, we're not enforcing step validation strictly on blur here,
+    // but it could be added if required: numericValue = Math.round(numericValue / step) * step;
 
+    onValueChange(numericValue);
+    // Update inputValue to reflect the validated and possibly corrected numeric value
+    // This ensures the input field shows the canonical value after blur.
+    setInputValue(String(numericValue)); 
+  };
 
   return (
     <div className="space-y-1.5">
@@ -62,14 +80,12 @@ const NumberInputStepper: FC<NumberInputStepperProps> = ({
       </Label>
       <Input
         id={id}
-        type="number"
-        value={value}
+        type="number" // Keeps numeric keyboard on mobile and basic browser number handling
+        value={inputValue} // Bind to local string state
         onChange={handleChange}
-        onBlur={handleBlur} // Add onBlur to handle empty or invalid states
-        min={min}
-        max={max}
-        step={step} // step attribute can help with browser's native number input behavior
-        className="w-full h-10" // Removed text-center as it's less relevant without buttons
+        onBlur={handleBlur}
+        step={step}
+        className="w-full h-10"
         disabled={disabled}
         aria-label={label}
         placeholder={`Min: ${min}${max !== undefined ? ', Max: ' + max : ''}`}
