@@ -20,8 +20,14 @@ const formatCurrency = (value: number) => {
 };
 
 const ResultItem: FC<{ item: CalculationResultItem }> = ({ item }) => (
-  <div className={`flex justify-between py-2 ${item.isTotal ? 'border-t pt-3 mt-2' : ''}`}>
-    <span className={item.isTotal ? 'font-semibold text-lg' : 'text-sm'}>
+  <div 
+    className={`flex justify-between py-2 ${item.isTotal ? 'border-t pt-3 mt-2' : ''}`}
+    data-testid="result-item"
+  >
+    <span 
+      className={item.isTotal ? 'font-semibold text-lg' : 'text-sm'}
+      data-label-text={item.label} // Added for easier access in onclone
+    >
       {item.label}
       {item.details && <span className="text-xs text-muted-foreground ml-1" data-result-detail="true">{item.details}</span>}
     </span>
@@ -64,8 +70,8 @@ const ResultsDisplay: FC<ResultsDisplayProps> = ({ title, results }) => {
             cardToClone.classList.remove('fade-in-animation');
             cardToClone.style.backgroundColor = 'white';
 
-            const elementsToColor = cardToClone.querySelectorAll('span, p, div, h3, h5, strong, b, svg, button > svg');
-            elementsToColor.forEach(el => {
+            const elementsToColorBlack = cardToClone.querySelectorAll('span, p, div, h3, h5, strong, b, svg, button > svg');
+            elementsToColorBlack.forEach(el => {
               if (el instanceof HTMLElement) {
                 if (['SPAN', 'P', 'DIV', 'H3', 'H5', 'STRONG', 'B'].includes(el.tagName)) {
                    el.style.setProperty('color', 'black', 'important');
@@ -75,7 +81,6 @@ const ResultsDisplay: FC<ResultsDisplayProps> = ({ title, results }) => {
               if (el instanceof SVGElement) {
                 el.style.setProperty('fill', 'black', 'important');
                 el.style.setProperty('stroke', 'black', 'important'); 
-
                 el.querySelectorAll('*').forEach(svgChild => {
                     if (svgChild instanceof SVGElement) {
                         svgChild.style.setProperty('fill', 'black', 'important');
@@ -85,11 +90,34 @@ const ResultsDisplay: FC<ResultsDisplayProps> = ({ title, results }) => {
               }
             });
 
-            // Hide specific detail spans in the cloned document
+            // Hide the summary section in the cloned document
+            const summarySection = cardToClone.querySelector('[data-testid="results-summary-section"]');
+            if (summarySection && summarySection instanceof HTMLElement) {
+              summarySection.style.display = 'none';
+            }
+
+            // Hide specific detail spans (measurement/calculation basis) in the cloned document
             const detailSpans = cardToClone.querySelectorAll('[data-result-detail="true"]');
             detailSpans.forEach(span => {
               if (span instanceof HTMLElement) {
                 span.style.display = 'none';
+              }
+            });
+
+            // Filter result items to show only Cuba-related and Total Geral
+            const resultItems = cardToClone.querySelectorAll('[data-testid="result-item"]');
+            resultItems.forEach(itemElement => {
+              const htmlItemElement = itemElement as HTMLElement;
+              const labelSpan = htmlItemElement.querySelector('span[data-label-text]');
+              if (labelSpan) {
+                const labelText = (labelSpan.getAttribute('data-label-text') || '').trim().toLowerCase();
+                
+                const isGrandTotal = labelText.startsWith('total geral');
+                const isCubaRelated = labelText.includes('cuba') || labelText.includes('cubas');
+            
+                if (!isGrandTotal && !isCubaRelated) {
+                  htmlItemElement.style.display = 'none';
+                }
               }
             });
           }
@@ -140,7 +168,7 @@ const ResultsDisplay: FC<ResultsDisplayProps> = ({ title, results }) => {
       </CardHeader>
       <CardContent className="space-y-4">
         {results.summary && results.summary.length > 0 && (
-          <div className="border-b pb-4 mb-4">
+          <div className="border-b pb-4 mb-4" data-testid="results-summary-section">
             <h3 className="font-semibold text-md mb-2 text-foreground/80">Detalhes dos Itens</h3>
             {results.summary.map((item, index) => (
               <div key={index} className="mb-2 text-sm">
@@ -158,3 +186,4 @@ const ResultsDisplay: FC<ResultsDisplayProps> = ({ title, results }) => {
 };
 
 export default ResultsDisplay;
+
