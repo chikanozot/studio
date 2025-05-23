@@ -13,7 +13,7 @@ import ResultsDisplay from '../shared/ResultsDisplay';
 import WashbasinItem from './WashbasinItem';
 
 const SCULPTED_SINK_LABOR_COST = 400;
-const SCULPTED_SINK_MATERIAL_METERS = 0.5; // 0.5 linear meters of stone
+const SCULPTED_SINK_MATERIAL_METERS = 0.5; // 0.5 meters of material (now costed with m2 price)
 const BUILT_IN_SINK_COST = 130;
 const WALL_SUPPORT_PRICE = 70;
 
@@ -33,9 +33,9 @@ const defaultWashbasinItem: () => WashbasinItemType = () => ({
 
 const WashbasinForm: FC = () => {
   const [washbasinItems, setWashbasinItems] = useState<WashbasinItemType[]>([]);
-  const [stonePriceM2, setStonePriceM2] = useState<number>(350); // Default for m²
-  const [stonePriceLinear, setStonePriceLinear] = useState<number>(150); // Default for linear meter
-  const [finishPrice, setFinishPrice] = useState<number>(80); // Default finish price for countertop
+  const [stonePriceM2, setStonePriceM2] = useState<number>(350); 
+  const [stonePriceLinear, setStonePriceLinear] = useState<number>(150); 
+  const [finishPrice, setFinishPrice] = useState<number>(80); 
 
   const [results, setResults] = useState<CalculationResults | null>(null);
 
@@ -57,15 +57,19 @@ const WashbasinForm: FC = () => {
       }
       return item;
     }));
-    setResults(null); // Clear results on update
+    setResults(null); 
   };
   
   const removeWashbasinItem = (id: string) => {
-    setWashbasinItems(prev => prev.filter(item => item.id !== id));
-    if (washbasinItems.length === 1 && prev.length === 1) { // If removing the last item, add a new default one
-        setTimeout(() => addWashbasinItem(), 0); // Add after current render cycle
-    }
-    setResults(null); // Clear results on remove
+    setWashbasinItems(prev => {
+      const newItems = prev.filter(item => item.id !== id);
+      if (newItems.length === 0) { // If removing the last item, add a new default one
+         // No need for setTimeout here, direct state update is fine
+         return [defaultWashbasinItem()];
+      }
+      return newItems;
+    });
+    setResults(null); 
   };
   
   const handleGlobalFinishPriceChange = (value: number) => {
@@ -78,12 +82,12 @@ const WashbasinForm: FC = () => {
       alert('Adicione pelo menos um lavatório para calcular o orçamento.');
       return;
     }
-    if (stonePriceM2 <= 0 && washbasinItems.some(item => item.calculationType === 'sem_cuba' || item.skirtHeight > 0 || item.topMoldingWidth > 0 || item.bottomMoldingWidth > 0)) {
+    if (stonePriceM2 <= 0 ) {
       alert('Informe o valor da pedra (R$/m²) para continuar.');
       return;
     }
-    if (stonePriceLinear <= 0 && washbasinItems.some(item => item.calculationType !== 'sem_cuba')) {
-      alert('Informe o valor da pedra (R$/metro linear) para continuar.');
+    if (stonePriceLinear <= 0 && washbasinItems.some(item => item.calculationType !== 'sem_cuba') ) {
+      alert('Informe o valor da pedra (R$/metro linear) para os cálculos de cuba esculpida/embutida.');
       return;
     }
 
@@ -112,7 +116,7 @@ const WashbasinForm: FC = () => {
         const countertopStoneCost = countertopArea * stonePriceM2;
         itemResultItems.push({ label: 'Pedra (Bancada)', value: countertopStoneCost, details: `${countertopArea.toFixed(3)}m² (R$ ${stonePriceM2}/m²)` });
         itemTotalCost += countertopStoneCost;
-      } else { // 'cuba_esculpida' or 'cuba_embutida'
+      } else { 
         const countertopLinearCost = lengthM * stonePriceLinear;
         itemResultItems.push({ label: 'Pedra (Bancada)', value: countertopLinearCost, details: `${lengthM.toFixed(2)}m linear (R$ ${stonePriceLinear}/m linear)` });
         itemTotalCost += countertopLinearCost;
@@ -122,10 +126,10 @@ const WashbasinForm: FC = () => {
           itemTotalCost += SCULPTED_SINK_LABOR_COST;
           itemSummaryItems.push({ label: `${itemLabelPrefix} - Cuba Esculpida (M.O.)`, details: `R$ ${SCULPTED_SINK_LABOR_COST.toFixed(2)}`});
           
-          const sinkMaterialCost = SCULPTED_SINK_MATERIAL_METERS * stonePriceLinear;
-          itemResultItems.push({ label: 'Material Adicional Cuba Esculpida', value: sinkMaterialCost, details: `${SCULPTED_SINK_MATERIAL_METERS}m linear (R$ ${stonePriceLinear}/m linear)` });
+          const sinkMaterialCost = SCULPTED_SINK_MATERIAL_METERS * stonePriceM2; // Using m2 price for the material
+          itemResultItems.push({ label: 'Material Adicional Cuba Esculpida', value: sinkMaterialCost, details: `${SCULPTED_SINK_MATERIAL_METERS}m de material (custo por m²: R$ ${stonePriceM2})` });
           itemTotalCost += sinkMaterialCost;
-          itemSummaryItems.push({ label: `${itemLabelPrefix} - Cuba Esculpida (Material)`, details: `${SCULPTED_SINK_MATERIAL_METERS}m de pedra`});
+          itemSummaryItems.push({ label: `${itemLabelPrefix} - Cuba Esculpida (Material)`, details: `${SCULPTED_SINK_MATERIAL_METERS}m de pedra (base m²)`});
         } else { // 'cuba_embutida'
           itemResultItems.push({ label: 'Cuba Embutida (Peça)', value: BUILT_IN_SINK_COST });
           itemTotalCost += BUILT_IN_SINK_COST;
@@ -149,21 +153,24 @@ const WashbasinForm: FC = () => {
         itemSummaryItems.push({ label: `${itemLabelPrefix} - Acabamento Bancada`, details: `Lados: ${finishedSidesSummary.join(', ')} (${totalFinishLengthMeters.toFixed(2)}m)`});
       } else if (totalFinishLengthMeters > 0 && finishPrice <= 0) {
          alert(`Para o Lavatório ${index + 1}, informe o valor do acabamento da bancada, pois há lados selecionados.`);
-         return; // Stop calculation
+         return; 
       }
 
 
-      // Saia (todos os tipos) - usa o comprimento total dos lados com acabamento da bancada como base
+      // Saia (todos os tipos) 
       if (item.skirtHeight > 0) {
-        if (totalFinishLengthMeters === 0) {
-          alert(`Para o Lavatório ${index + 1}, selecione pelo menos um lado com acabamento na bancada para calcular a saia.`);
-          return;
+        if (totalFinishLengthMeters === 0 && item.finishedSides.length === 0) {
+           alert(`Para o Lavatório ${index + 1}, com saia de ${item.skirtHeight}cm, selecione pelo menos um lado com acabamento na bancada para basear o comprimento da saia.`);
+           return;
         }
-        const skirtArea = (item.skirtHeight / 100) * totalFinishLengthMeters; // Comprimento linear da saia = totalFinishLengthMeters
+        // Base skirt length on finished sides, if none, use total perimeter of the countertop for skirt calculation.
+        const skirtBaseLengthMeters = totalFinishLengthMeters > 0 ? totalFinishLengthMeters : (2 * lengthM + 2 * widthM);
+
+        const skirtArea = (item.skirtHeight / 100) * skirtBaseLengthMeters; 
         const currentSkirtCost = skirtArea * stonePriceM2;
-        itemResultItems.push({ label: 'Saia', value: currentSkirtCost, details: `${item.skirtHeight}cm altura, ${totalFinishLengthMeters.toFixed(2)}m comp., ${skirtArea.toFixed(3)}m² (R$ ${stonePriceM2}/m²)` });
+        itemResultItems.push({ label: 'Saia', value: currentSkirtCost, details: `${item.skirtHeight}cm altura, ${skirtBaseLengthMeters.toFixed(2)}m comp., ${skirtArea.toFixed(3)}m² (R$ ${stonePriceM2}/m²)` });
         itemTotalCost += currentSkirtCost;
-        itemSummaryItems.push({ label: `${itemLabelPrefix} - Saia`, details: `${item.skirtHeight}cm altura`});
+        itemSummaryItems.push({ label: `${itemLabelPrefix} - Saia`, details: `${item.skirtHeight}cm altura, ${skirtBaseLengthMeters.toFixed(2)}m comp.`});
       }
 
       // Rodapés (todos os tipos)
@@ -174,9 +181,9 @@ const WashbasinForm: FC = () => {
       allPossibleSides.forEach(side => {
         const sideLengthM = ((side === 'top' || side === 'bottom') ? lengthM : widthM);
         if (item.finishedSides.includes(side)) {
-          bottomMoldingLengthForCalc += sideLengthM; // Rodapé inferior acompanha lados COM acabamento
+          bottomMoldingLengthForCalc += sideLengthM; 
         } else {
-          topMoldingLengthForCalc += sideLengthM;    // Rodapé superior acompanha lados SEM acabamento
+          topMoldingLengthForCalc += sideLengthM;    
         }
       });
       
@@ -191,7 +198,7 @@ const WashbasinForm: FC = () => {
       if (item.bottomMoldingWidth > 0 && bottomMoldingLengthForCalc > 0) {
         const bottomMoldingArea = (item.bottomMoldingWidth / 100) * bottomMoldingLengthForCalc;
         const bottomMoldingBaseCost = bottomMoldingArea * stonePriceM2;
-        const bottomMoldingFinalCost = bottomMoldingBaseCost * 1.30; // Acréscimo de 30%
+        const bottomMoldingFinalCost = bottomMoldingBaseCost * 1.30; 
         itemMoldingCost += bottomMoldingFinalCost;
         moldingDetailsParts.push(`Inferior ${item.bottomMoldingWidth}cm (${bottomMoldingLengthForCalc.toFixed(2)}m c/ acab. bancada, ${bottomMoldingArea.toFixed(3)}m² a R$ ${stonePriceM2}/m², acréscimo 30%)`);
       }
@@ -202,9 +209,9 @@ const WashbasinForm: FC = () => {
         itemSummaryItems.push({ label: `${itemLabelPrefix} - Rodapés`, details: moldingDetailsParts.join('; ')});
       }
 
-      // Suporte de Parede (todos os tipos)
       if (item.hasWallSupport) {
-        totalWallSupportCostCalculation += WALL_SUPPORT_PRICE;
+        // Wall support cost is added to grand total later, not per item here.
+        // But we count it for summary and global calculation.
         supportedWashbasinsCount++;
         itemSummaryItems.push({ label: `${itemLabelPrefix} - Suporte`, details: `Com suporte de parede (R$ ${WALL_SUPPORT_PRICE.toFixed(2)})` });
       }
@@ -214,6 +221,7 @@ const WashbasinForm: FC = () => {
       grandTotalCost += itemTotalCost;
     });
 
+    totalWallSupportCostCalculation = supportedWashbasinsCount * WALL_SUPPORT_PRICE;
     if (totalWallSupportCostCalculation > 0) {
         allResultItems.push({ label: 'Total Suportes de Parede', value: totalWallSupportCostCalculation, details: `${supportedWashbasinsCount} lavatório(s)` });
         grandTotalCost += totalWallSupportCostCalculation;
@@ -226,14 +234,13 @@ const WashbasinForm: FC = () => {
   return (
     <div className="space-y-8 fade-in-animation">
       <div className="grid md:grid-cols-2 gap-8">
-        {/* Left Column: Configuration */}
         <div className="space-y-6">
            <Card>
             <CardHeader>
               <CardTitle className="text-xl text-primary">Itens do Lavatório</CardTitle>
             </CardHeader>
             <CardContent>
-              <div id="washbasin-items-container" className="space-y-3 max-h-[calc(100vh-350px)] overflow-y-auto pr-2"> {/* Adjusted max-height */}
+              <div id="washbasin-items-container" className="space-y-3 max-h-[calc(100vh-350px)] overflow-y-auto pr-2"> 
                 {washbasinItems.map((item, index) => (
                   <WashbasinItem
                     key={item.id}
@@ -241,8 +248,8 @@ const WashbasinForm: FC = () => {
                     index={index}
                     onUpdate={updateWashbasinItem}
                     onRemove={removeWashbasinItem}
-                    finishPrice={finishPrice} // Pass global finish price
-                    onFinishPriceChange={handleGlobalFinishPriceChange} // Allow item to update global finish price
+                    finishPrice={finishPrice} 
+                    onFinishPriceChange={handleGlobalFinishPriceChange} 
                   />
                 ))}
               </div>
@@ -253,7 +260,6 @@ const WashbasinForm: FC = () => {
           </Card>
         </div>
 
-        {/* Right Column: General Settings & Calculate Button */}
         <div className="space-y-6">
           <Card>
             <CardHeader>
@@ -276,7 +282,7 @@ const WashbasinForm: FC = () => {
                   className="mt-1"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  Usado para bancada "Sem Cuba", saias e rodapés.
+                  Usado para bancada "Sem Cuba", saias, rodapés e material da cuba esculpida.
                 </p>
               </div>
               <div>
@@ -295,7 +301,7 @@ const WashbasinForm: FC = () => {
                   className="mt-1"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  Usado para bancada "Cuba Esculpida/Embutida" e material da cuba esculpida.
+                  Usado para bancada "Cuba Esculpida/Embutida".
                 </p>
               </div>
                <div>
@@ -330,3 +336,5 @@ const WashbasinForm: FC = () => {
 };
 
 export default WashbasinForm;
+
+    
