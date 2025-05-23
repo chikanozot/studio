@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { FC } from 'react';
@@ -15,11 +16,11 @@ const generateId = () => Date.now().toString();
 
 const ThresholdForm: FC = () => {
   const [items, setItems] = useState<SoleiraItem[]>([]);
-  const [stonePrice, setStonePrice] = useState<number>(300);
+  const [stonePrice, setStonePrice] = useState<number>(300); // R$/m² for stone
   const [results, setResults] = useState<CalculationResults | null>(null);
 
   const addItem = (type: 'soleira' | 'pingadeira') => {
-    setItems(prev => [...prev, { id: generateId(), type, length: 100, width: 10 }]);
+    setItems(prev => [...prev, { id: generateId(), type, length: 100, width: 10, finishType: 'none' }]);
   };
 
   const updateItem = (id: string, updates: Partial<SoleiraItem>) => {
@@ -36,31 +37,57 @@ const ThresholdForm: FC = () => {
       return;
     }
     if (stonePrice <= 0) {
-      alert('Informe o valor da pedra para continuar.');
+      alert('Informe o valor da pedra (R$/m²) para continuar.');
       return;
     }
 
-    let totalArea = 0;
+    let totalStoneArea = 0;
+    let totalFinishCostItems = 0;
     const summaryItems: CalculationResultItem[] = [];
 
     items.forEach((item, index) => {
-      const effectiveWidth = item.type === 'pingadeira' ? item.width + 2 : item.width;
-      const area = (item.length / 100) * (effectiveWidth / 100); // in m²
-      totalArea += area;
+      // Stone calculation
+      const effectiveWidthForStone = item.type === 'pingadeira' ? item.width + 2 : item.width;
+      const stoneAreaForItem = (item.length / 100) * (effectiveWidthForStone / 100); // in m²
+      totalStoneArea += stoneAreaForItem;
+      
+      // Finish calculation
+      let itemFinishLinearMeters = 0;
+      if (item.finishType === 'one_side') {
+        itemFinishLinearMeters = item.length / 100; // meters
+      } else if (item.finishType === 'two_sides') {
+        itemFinishLinearMeters = (item.length / 100) * 2; // meters
+      }
+
+      const finishPricePerLinearMeter = item.type === 'soleira' ? 8 : 10; // R$8/m for soleira, R$10/m for pingadeira
+      const currentItemFinishCost = itemFinishLinearMeters * finishPricePerLinearMeter;
+      totalFinishCostItems += currentItemFinishCost;
+
+      let finishDescription = "Sem acabamento";
+      if (item.finishType === 'one_side') {
+        finishDescription = `1 lado maior (${item.length}cm)`;
+      } else if (item.finishType === 'two_sides') {
+        finishDescription = `2 lados maiores (${item.length}cm)`;
+      }
       
       summaryItems.push({
         label: `${item.type === 'soleira' ? 'Soleira' : 'Pingadeira'} ${index + 1}`,
-        details: `${item.length}cm x ${item.width}cm. ${item.type === 'pingadeira' ? `Largura efetiva: ${effectiveWidth}cm. ` : ''}Área: ${area.toFixed(3)}m²`,
+        details: `${item.length}cm x ${item.width}cm. ${item.type === 'pingadeira' ? `Largura efetiva (pedra): ${effectiveWidthForStone}cm. ` : ''}Área pedra: ${stoneAreaForItem.toFixed(3)}m². Acabamento: ${finishDescription} (R$ ${currentItemFinishCost.toFixed(2)})`,
       });
     });
 
-    const totalCost = totalArea * stonePrice;
+    const totalStoneMaterialCost = totalStoneArea * stonePrice;
+    const finalTotalCost = totalStoneMaterialCost + totalFinishCostItems;
 
     const resultItems: CalculationResultItem[] = [
-      { label: 'Área Total Calculada', value: `${totalArea.toFixed(3)} m²` },
-      { label: 'Valor da Pedra (por m²)', value: stonePrice },
-      { label: 'Custo Total da Pedra', value: totalCost, isTotal: true },
+      { label: 'Pedra (Material)', value: totalStoneMaterialCost, details: `${totalStoneArea.toFixed(3)} m² (R$ ${stonePrice}/m²)` },
     ];
+
+    if (totalFinishCostItems > 0) {
+        resultItems.push({ label: 'Acabamento', value: totalFinishCostItems, details: `Soleira: R$8/m, Pingadeira: R$10/m` });
+    }
+    
+    resultItems.push({ label: 'Valor Total', value: finalTotalCost, isTotal: true });
     
     setResults({ items: resultItems, summary: summaryItems });
   };
@@ -115,6 +142,7 @@ const ThresholdForm: FC = () => {
                   onChange={(e) => setStonePrice(parseFloat(e.target.value) || 0)}
                   placeholder="Ex: 300.00"
                   step="0.01"
+                  min="0"
                   className="mt-1"
                 />
               </div>

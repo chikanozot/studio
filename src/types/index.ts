@@ -18,6 +18,7 @@ export interface SoleiraItem {
   type: 'soleira' | 'pingadeira';
   length: number;
   width: number;
+  finishType: 'none' | 'one_side' | 'two_sides';
 }
 
 export interface CalculationResultItem {
@@ -31,3 +32,4 @@ export interface CalculationResults {
   items: CalculationResultItem[];
   summary?: CalculationResultItem[];
 }
+

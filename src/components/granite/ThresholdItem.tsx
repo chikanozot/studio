@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { FC } from 'react';
@@ -6,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Trash2 } from "lucide-react";
 import NumberInputStepper from "@/components/shared/NumberInputStepper";
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface ThresholdItemProps {
   item: SoleiraItem;
@@ -17,6 +20,10 @@ interface ThresholdItemProps {
 const ThresholdItem: FC<ThresholdItemProps> = ({ item, index, onUpdate, onRemove }) => {
   const handleDimensionChange = (field: 'length' | 'width', value: number) => {
     onUpdate(item.id, { [field]: value });
+  };
+
+  const handleFinishTypeChange = (value: 'none' | 'one_side' | 'two_sides') => {
+    onUpdate(item.id, { finishType: value });
   };
 
   const itemTypeName = item.type === 'soleira' ? 'Soleira' : 'Pingadeira';
@@ -51,9 +58,25 @@ const ThresholdItem: FC<ThresholdItemProps> = ({ item, index, onUpdate, onRemove
             min={1}
           />
         </div>
-         {item.type === 'pingadeira' && (
-            <p className="text-xs text-muted-foreground">Largura efetiva para cálculo: {item.width + 2}cm (inclui 2cm para pingadeira)</p>
-          )}
+        <div>
+          <Label htmlFor={`threshold-${item.id}-finish`} className="text-sm font-medium">Acabamento (Lados Maiores)</Label>
+          <Select
+            value={item.finishType}
+            onValueChange={handleFinishTypeChange}
+          >
+            <SelectTrigger id={`threshold-${item.id}-finish`} className="w-full mt-1">
+              <SelectValue placeholder="Selecione o acabamento" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">Sem acabamento</SelectItem>
+              <SelectItem value="one_side">1 Lado Maior (Comprimento)</SelectItem>
+              <SelectItem value="two_sides">2 Lados Maiores (Comprimento)</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        {item.type === 'pingadeira' && (
+          <p className="text-xs text-muted-foreground">Largura efetiva para cálculo da pedra: {item.width + 2}cm (inclui 2cm para pingadeira)</p>
+        )}
       </CardContent>
     </Card>
   );
