@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({ // Changed variable name to match usage
 });
 
 export const metadata: Metadata = {
-  title: 'Granite Budgeteer',
+  title: 'orcamento MARPORÃ',
   description: 'Calcule o valor exato para seu projeto em granito',
 };
 
