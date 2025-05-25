@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Calculator } from "lucide-react";
 import ResultsDisplay from '../shared/ResultsDisplay';
 import NumberInputStepper from '../shared/NumberInputStepper';
+import { Checkbox } from '@/components/ui/checkbox'; // Import Checkbox
 
 interface FinishTypeOption {
   value: string;
@@ -24,6 +25,8 @@ const finishTypes: FinishTypeOption[] = [
 ];
 
 const HANDLE_PRICE = 100;
+const VELEIRO_PRICE = 250;
+const VASO_PRICE = 250;
 
 const TombstoneForm: FC = () => {
   const [length, setLength] = useState<number | null>(null);
@@ -32,6 +35,8 @@ const TombstoneForm: FC = () => {
   const [finishTypeValue, setFinishTypeValue] = useState<string>('meia_cana_abonado');
   const [stonePrice, setStonePrice] = useState<number | null>(null);
   const [numberOfHandles, setNumberOfHandles] = useState<number | null>(null);
+  const [hasVeleiro, setHasVeleiro] = useState<boolean>(false);
+  const [hasVaso, setHasVaso] = useState<boolean>(false);
   const [results, setResults] = useState<CalculationResults | null>(null);
 
   const handleCalculation = () => {
@@ -70,8 +75,10 @@ const TombstoneForm: FC = () => {
     const currentFinishCost = perimeter * finishPricePerMeter;
 
     const handlesCost = currentNumberOfHandles * HANDLE_PRICE;
+    const veleiroCost = hasVeleiro ? VELEIRO_PRICE : 0;
+    const vasoCost = hasVaso ? VASO_PRICE : 0;
 
-    const totalCost = currentStoneCost + currentFinishCost + handlesCost;
+    const totalCost = currentStoneCost + currentFinishCost + handlesCost + veleiroCost + vasoCost;
 
     const summaryItems: CalculationResultItem[] = [
         { label: "Medidas", details: `${currentLength}cm (C) x ${currentWidth}cm (L) x ${currentHeight}cm (A)`},
@@ -82,6 +89,12 @@ const TombstoneForm: FC = () => {
     ];
     if (currentNumberOfHandles > 0) {
         summaryItems.push({ label: "Puxadores", details: `${currentNumberOfHandles} unidade(s)`});
+    }
+    if (hasVeleiro) {
+        summaryItems.push({ label: "Veleiro", details: `Sim (R$ ${VELEIRO_PRICE.toFixed(2)})`});
+    }
+    if (hasVaso) {
+        summaryItems.push({ label: "Vaso", details: `Sim (R$ ${VASO_PRICE.toFixed(2)})`});
     }
 
 
@@ -95,6 +108,12 @@ const TombstoneForm: FC = () => {
 
     if (handlesCost > 0) {
       resultItems.push({ label: 'Puxadores', value: handlesCost, details: `${currentNumberOfHandles} unidade(s) (R$ ${HANDLE_PRICE.toFixed(2)}/unid.)` });
+    }
+    if (veleiroCost > 0) {
+      resultItems.push({ label: 'Veleiro', value: veleiroCost, details: `R$ ${VELEIRO_PRICE.toFixed(2)}` });
+    }
+    if (vasoCost > 0) {
+      resultItems.push({ label: 'Vaso', value: vasoCost, details: `R$ ${VASO_PRICE.toFixed(2)}` });
     }
     
     resultItems.push({ label: 'Total', value: totalCost, isTotal: true });
@@ -160,6 +179,34 @@ const TombstoneForm: FC = () => {
                 min={0}
                 step={1}
               />
+              <div className="space-y-2 pt-2">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="tumulo-veleiro"
+                    checked={hasVeleiro}
+                    onCheckedChange={(checked) => {
+                      setHasVeleiro(!!checked);
+                      setResults(null);
+                    }}
+                  />
+                  <Label htmlFor="tumulo-veleiro" className="text-sm font-medium text-foreground">
+                    Adicionar Veleiro (R$ {VELEIRO_PRICE.toFixed(2)})
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="tumulo-vaso"
+                    checked={hasVaso}
+                    onCheckedChange={(checked) => {
+                      setHasVaso(!!checked);
+                      setResults(null);
+                    }}
+                  />
+                  <Label htmlFor="tumulo-vaso" className="text-sm font-medium text-foreground">
+                    Adicionar Vaso (R$ {VASO_PRICE.toFixed(2)})
+                  </Label>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </div>
