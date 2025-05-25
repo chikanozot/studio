@@ -33,6 +33,12 @@ const BASE_TOMB_LENGTH_CM = 260;
 const BASE_TOMB_WIDTH_CM = 130;
 const MIN_PAVING_AREA_M2_FOR_STANDARD_SIZE = 2;
 
+const CAPELA_GLASS_PRICE = 600;
+const CAPELA_STRUCTURE_BASE_PRICE_STONE_UP_TO_400 = 1300; // (1900 total - 600 glass)
+const CAPELA_STONE_PRICE_THRESHOLD_FOR_BASE = 400;
+
+type TombStructureType = 'none' | 'cabeceira' | 'capela';
+
 const TombstoneForm: FC = () => {
   const [length, setLength] = useState<number | null>(null);
   const [width, setWidth] = useState<number | null>(null);
@@ -43,6 +49,7 @@ const TombstoneForm: FC = () => {
   const [hasVeleiro, setHasVeleiro] = useState<boolean>(false);
   const [hasVaso, setHasVaso] = useState<boolean>(false);
   const [numberOfCarneiras, setNumberOfCarneiras] = useState<number | null>(null);
+  const [tombType, setTombType] = useState<TombStructureType>('none');
   const [results, setResults] = useState<CalculationResults | null>(null);
 
   const handleCalculation = () => {
@@ -72,14 +79,14 @@ const TombstoneForm: FC = () => {
     const topArea = lengthM * widthM;
     const frontBackArea = 2 * lengthM * heightM;
     const sideArea = 2 * widthM * heightM;
-    const totalTombStructureStoneArea = topArea + frontBackArea + sideArea;
-    const tombStructureStoneCost = totalTombStructureStoneArea * currentStonePriceVal;
+    let totalTombStructureStoneArea = topArea + frontBackArea + sideArea;
+    
 
     // Paving stone area calculation
     let pavingStoneAreaM2 = 0;
     if (currentLength > 0 && currentWidth > 0) {
       const actualTombFootprintM2 = (currentLength / 100) * (currentWidth / 100);
-      const referenceTombFootprintM2 = (BASE_TOMB_LENGTH_CM / 100) * (BASE_TOMB_WIDTH_CM / 100); // 3.38 m²
+      const referenceTombFootprintM2 = (BASE_TOMB_LENGTH_CM / 100) * (BASE_TOMB_WIDTH_CM / 100); 
 
       if (currentLength <= BASE_TOMB_LENGTH_CM && currentWidth <= BASE_TOMB_WIDTH_CM) {
         pavingStoneAreaM2 = MIN_PAVING_AREA_M2_FOR_STANDARD_SIZE;
@@ -87,11 +94,19 @@ const TombstoneForm: FC = () => {
         if (referenceTombFootprintM2 > 0) {
              pavingStoneAreaM2 = (actualTombFootprintM2 / referenceTombFootprintM2) * MIN_PAVING_AREA_M2_FOR_STANDARD_SIZE;
         } else {
-            pavingStoneAreaM2 = MIN_PAVING_AREA_M2_FOR_STANDARD_SIZE; // Fallback
+            pavingStoneAreaM2 = MIN_PAVING_AREA_M2_FOR_STANDARD_SIZE; 
         }
       }
     }
     const pavingStoneCost = pavingStoneAreaM2 * currentStonePriceVal;
+
+    // Cabeceira stone cost
+    let cabeceiraStoneCost = 0;
+    if (tombType === 'cabeceira') {
+      totalTombStructureStoneArea += 1; // Add 1m² for cabeceira
+      cabeceiraStoneCost = 1 * currentStonePriceVal;
+    }
+    const tombStructureStoneCost = totalTombStructureStoneArea * currentStonePriceVal;
 
 
     const selectedFinish = finishTypes.find(f => f.value === finishTypeValue);
@@ -106,16 +121,42 @@ const TombstoneForm: FC = () => {
     const vasoCost = hasVaso ? VASO_PRICE : 0;
     const carneirasCost = currentNumberOfCarneiras * CARNEIRA_PRICE;
 
-    const totalCost = tombStructureStoneCost + pavingStoneCost + currentFinishCost + handlesCost + veleiroCost + vasoCost + carneirasCost;
+    // Capela cost
+    let capelaTotalCost = 0;
+    let capelaGlassCost = 0;
+    let capelaStructureCost = 0;
+    if (tombType === 'capela') {
+      capelaGlassCost = CAPELA_GLASS_PRICE;
+      if (currentStonePriceVal <= CAPELA_STONE_PRICE_THRESHOLD_FOR_BASE) {
+        capelaStructureCost = CAPELA_STRUCTURE_BASE_PRICE_STONE_UP_TO_400;
+      } else {
+        capelaStructureCost = (currentStonePriceVal / CAPELA_STONE_PRICE_THRESHOLD_FOR_BASE) * CAPELA_STRUCTURE_BASE_PRICE_STONE_UP_TO_400;
+      }
+      capelaTotalCost = capelaGlassCost + capelaStructureCost;
+    }
+
+    const totalCost = tombStructureStoneCost + pavingStoneCost + currentFinishCost + handlesCost + veleiroCost + vasoCost + carneirasCost + capelaTotalCost;
 
     const summaryItems: CalculationResultItem[] = [
         { label: "Medidas Túmulo", details: `${currentLength}cm (C) x ${currentWidth}cm (L) x ${currentHeight}cm (A)`},
+    ];
+    if (tombType === 'cabeceira') {
+        summaryItems.push({ label: "Estrutura Adicional", details: `Cabeceira (1m² de pedra adicional para a estrutura)`});
+    } else if (tombType === 'capela') {
+        const capelaStructureDetails = currentStonePriceVal <= CAPELA_STONE_PRICE_THRESHOLD_FOR_BASE
+        ? `Estrutura com pedra até R$ ${CAPELA_STONE_PRICE_THRESHOLD_FOR_BASE.toFixed(2)}/m²`
+        : `Estrutura proporcional com pedra a R$ ${currentStonePriceVal.toFixed(2)}/m²`;
+        summaryItems.push({ label: "Estrutura Adicional", details: `Capela. Vidro: R$ ${capelaGlassCost.toFixed(2)}. Estrutura: R$ ${capelaStructureCost.toFixed(2)} (${capelaStructureDetails})`});
+    }
+    
+    summaryItems.push(
         { label: "Área da Pedra (Túmulo)", 
-          details: `Topo: ${topArea.toFixed(2)}m², Frente/Trás: ${frontBackArea.toFixed(2)}m², Lados: ${sideArea.toFixed(2)}m². Total Estrutura: ${totalTombStructureStoneArea.toFixed(2)}m²`
+          details: `Topo: ${topArea.toFixed(2)}m², Frente/Trás: ${frontBackArea.toFixed(2)}m², Lados: ${sideArea.toFixed(2)}m². ${tombType === 'cabeceira' ? 'Cabeceira: 1.00m². ' : ''}Total Estrutura: ${totalTombStructureStoneArea.toFixed(2)}m²`
         },
         { label: "Calçada", details: `Área da pedra para calçada: ${pavingStoneAreaM2.toFixed(2)}m². Regra: até ${BASE_TOMB_LENGTH_CM}x${BASE_TOMB_WIDTH_CM}cm = ${MIN_PAVING_AREA_M2_FOR_STANDARD_SIZE}m², maior aumenta proporcionalmente.`},
         { label: "Acabamento", details: `${finishName} (Perímetro: ${perimeter.toFixed(2)}m)`}
-    ];
+    );
+
     if (currentNumberOfHandles > 0) {
         summaryItems.push({ label: "Puxadores", details: `${currentNumberOfHandles} unidade(s)`});
     }
@@ -131,7 +172,7 @@ const TombstoneForm: FC = () => {
 
 
     const resultItems: CalculationResultItem[] = [
-      { label: 'Pedra (Estrutura Túmulo)', value: tombStructureStoneCost, details: `${totalTombStructureStoneArea.toFixed(2)}m² (R$ ${currentStonePriceVal.toFixed(2)}/m²)` },
+      { label: 'Pedra (Estrutura Túmulo)', value: tombStructureStoneCost, details: `${totalTombStructureStoneArea.toFixed(2)}m² (R$ ${currentStonePriceVal.toFixed(2)}/m²)${tombType === 'cabeceira' ? ' (inclui 1m² da cabeceira)' : ''}` },
     ];
 
     if (pavingStoneAreaM2 > 0) {
@@ -153,6 +194,14 @@ const TombstoneForm: FC = () => {
     }
     if (carneirasCost > 0) {
       resultItems.push({ label: 'Carneiras', value: carneirasCost, details: `${currentNumberOfCarneiras} unidade(s) (R$ ${CARNEIRA_PRICE.toFixed(2)}/unid.)` });
+    }
+
+    if (tombType === 'capela') {
+      const capelaStructureDetails = currentStonePriceVal <= CAPELA_STONE_PRICE_THRESHOLD_FOR_BASE
+        ? `Estrutura com pedra até R$ ${CAPELA_STONE_PRICE_THRESHOLD_FOR_BASE.toFixed(2)}/m²`
+        : `Estrutura proporcional com pedra a R$ ${currentStonePriceVal.toFixed(2)}/m²`;
+      resultItems.push({ label: 'Capela (Estrutura)', value: capelaStructureCost, details: capelaStructureDetails });
+      resultItems.push({ label: 'Capela (Vidro)', value: capelaGlassCost, details: 'Valor fixo' });
     }
     
     resultItems.push({ label: 'Total', value: totalCost, isTotal: true });
@@ -194,6 +243,19 @@ const TombstoneForm: FC = () => {
                 onValueChange={(val) => {setHeight(val); setResults(null);}}
                 min={10}
               />
+              <div>
+                <Label htmlFor="tumulo-tomb-type" className="text-sm font-medium">Tipo de Estrutura Adicional</Label>
+                <Select value={tombType} onValueChange={(val) => {setTombType(val as TombStructureType); setResults(null);}}>
+                  <SelectTrigger id="tumulo-tomb-type" className="w-full mt-1">
+                    <SelectValue placeholder="Selecione o tipo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Nenhuma</SelectItem>
+                    <SelectItem value="cabeceira">Cabeceira (adiciona 1m² de pedra)</SelectItem>
+                    <SelectItem value="capela">Capela</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <div>
                 <Label htmlFor="tumulo-finish" className="text-sm font-medium">Tipo de Acabamento</Label>
                 <Select value={finishTypeValue} onValueChange={(val) => {setFinishTypeValue(val); setResults(null);}}>
@@ -291,6 +353,3 @@ const TombstoneForm: FC = () => {
 };
 
 export default TombstoneForm;
-
-
-    
