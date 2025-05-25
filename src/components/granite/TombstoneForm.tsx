@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Calculator } from "lucide-react";
 import ResultsDisplay from '../shared/ResultsDisplay';
 import NumberInputStepper from '../shared/NumberInputStepper';
-import { Checkbox } from '@/components/ui/checkbox'; // Import Checkbox
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface FinishTypeOption {
   value: string;
@@ -27,6 +27,7 @@ const finishTypes: FinishTypeOption[] = [
 const HANDLE_PRICE = 100;
 const VELEIRO_PRICE = 250;
 const VASO_PRICE = 250;
+const CARNEIRA_PRICE = 1200; // New constant for Carneira price
 
 const TombstoneForm: FC = () => {
   const [length, setLength] = useState<number | null>(null);
@@ -37,6 +38,7 @@ const TombstoneForm: FC = () => {
   const [numberOfHandles, setNumberOfHandles] = useState<number | null>(null);
   const [hasVeleiro, setHasVeleiro] = useState<boolean>(false);
   const [hasVaso, setHasVaso] = useState<boolean>(false);
+  const [numberOfCarneiras, setNumberOfCarneiras] = useState<number | null>(null); // New state for carneiras
   const [results, setResults] = useState<CalculationResults | null>(null);
 
   const handleCalculation = () => {
@@ -45,6 +47,7 @@ const TombstoneForm: FC = () => {
     const currentHeight = height === null ? 0 : height;
     const currentStonePriceVal = stonePrice === null ? 0 : stonePrice;
     const currentNumberOfHandles = numberOfHandles === null ? 0 : numberOfHandles;
+    const currentNumberOfCarneiras = numberOfCarneiras === null ? 0 : numberOfCarneiras; // Get current number of carneiras
 
     if (currentLength <= 0 || currentWidth <= 0 || currentHeight <= 0) {
       alert('Informe todas as medidas do túmulo para continuar.');
@@ -77,8 +80,9 @@ const TombstoneForm: FC = () => {
     const handlesCost = currentNumberOfHandles * HANDLE_PRICE;
     const veleiroCost = hasVeleiro ? VELEIRO_PRICE : 0;
     const vasoCost = hasVaso ? VASO_PRICE : 0;
+    const carneirasCost = currentNumberOfCarneiras * CARNEIRA_PRICE; // Calculate carneiras cost
 
-    const totalCost = currentStoneCost + currentFinishCost + handlesCost + veleiroCost + vasoCost;
+    const totalCost = currentStoneCost + currentFinishCost + handlesCost + veleiroCost + vasoCost + carneirasCost; // Add carneirasCost to total
 
     const summaryItems: CalculationResultItem[] = [
         { label: "Medidas", details: `${currentLength}cm (C) x ${currentWidth}cm (L) x ${currentHeight}cm (A)`},
@@ -95,6 +99,9 @@ const TombstoneForm: FC = () => {
     }
     if (hasVaso) {
         summaryItems.push({ label: "Vaso", details: `Sim (R$ ${VASO_PRICE.toFixed(2)})`});
+    }
+    if (currentNumberOfCarneiras > 0) { // Add carneiras to summary
+        summaryItems.push({ label: "Carneiras", details: `${currentNumberOfCarneiras} unidade(s)`});
     }
 
 
@@ -114,6 +121,9 @@ const TombstoneForm: FC = () => {
     }
     if (vasoCost > 0) {
       resultItems.push({ label: 'Vaso', value: vasoCost, details: `R$ ${VASO_PRICE.toFixed(2)}` });
+    }
+    if (carneirasCost > 0) { // Add carneiras cost to results
+      resultItems.push({ label: 'Carneiras', value: carneirasCost, details: `${currentNumberOfCarneiras} unidade(s) (R$ ${CARNEIRA_PRICE.toFixed(2)}/unid.)` });
     }
     
     resultItems.push({ label: 'Total', value: totalCost, isTotal: true });
@@ -176,6 +186,15 @@ const TombstoneForm: FC = () => {
                 unit="unid."
                 value={numberOfHandles}
                 onValueChange={(val) => {setNumberOfHandles(val); setResults(null);}}
+                min={0}
+                step={1}
+              />
+              <NumberInputStepper // New input for Carneiras
+                id="tumulo-carneiras"
+                label="Número de Carneiras (Opcional)"
+                unit="unid."
+                value={numberOfCarneiras}
+                onValueChange={(val) => {setNumberOfCarneiras(val); setResults(null);}}
                 min={0}
                 step={1}
               />
@@ -243,4 +262,3 @@ const TombstoneForm: FC = () => {
 };
 
 export default TombstoneForm;
-
