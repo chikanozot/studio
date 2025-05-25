@@ -19,17 +19,19 @@ interface FinishTypeOption {
 }
 
 const finishTypes: FinishTypeOption[] = [
-  { value: 'simples', label: 'Simples', pricePerMeter: 100 },
-  { value: 'padrao', label: 'Padrão', pricePerMeter: 150 },
-  { value: 'luxo', label: 'Luxo', pricePerMeter: 250 },
+  { value: 'none', label: 'Sem Acabamento', pricePerMeter: 0 },
+  { value: 'meia_cana_abonado', label: 'Meia Cana Abonado', pricePerMeter: 80 },
 ];
+
+const HANDLE_PRICE = 100;
 
 const TombstoneForm: FC = () => {
   const [length, setLength] = useState<number | null>(null);
   const [width, setWidth] = useState<number | null>(null);
   const [height, setHeight] = useState<number | null>(null);
-  const [finishTypeValue, setFinishTypeValue] = useState<string>('padrao');
+  const [finishTypeValue, setFinishTypeValue] = useState<string>('meia_cana_abonado');
   const [stonePrice, setStonePrice] = useState<number | null>(null);
+  const [numberOfHandles, setNumberOfHandles] = useState<number | null>(null);
   const [results, setResults] = useState<CalculationResults | null>(null);
 
   const handleCalculation = () => {
@@ -37,13 +39,16 @@ const TombstoneForm: FC = () => {
     const currentWidth = width === null ? 0 : width;
     const currentHeight = height === null ? 0 : height;
     const currentStonePriceVal = stonePrice === null ? 0 : stonePrice;
+    const currentNumberOfHandles = numberOfHandles === null ? 0 : numberOfHandles;
 
     if (currentLength <= 0 || currentWidth <= 0 || currentHeight <= 0) {
       alert('Informe todas as medidas do túmulo para continuar.');
+      setResults(null);
       return;
     }
     if (currentStonePriceVal <= 0) {
       alert('Informe o valor da pedra para continuar.');
+      setResults(null);
       return;
     }
 
@@ -64,7 +69,9 @@ const TombstoneForm: FC = () => {
     const perimeter = 2 * (lengthM + widthM); // Perimeter of the top for finishing edges
     const currentFinishCost = perimeter * finishPricePerMeter;
 
-    const totalCost = currentStoneCost + currentFinishCost;
+    const handlesCost = currentNumberOfHandles * HANDLE_PRICE;
+
+    const totalCost = currentStoneCost + currentFinishCost + handlesCost;
 
     const summaryItems: CalculationResultItem[] = [
         { label: "Medidas", details: `${currentLength}cm (C) x ${currentWidth}cm (L) x ${currentHeight}cm (A)`},
@@ -73,12 +80,24 @@ const TombstoneForm: FC = () => {
         },
         { label: "Acabamento", details: `${finishName} (Perímetro: ${perimeter.toFixed(2)}m)`}
     ];
+    if (currentNumberOfHandles > 0) {
+        summaryItems.push({ label: "Puxadores", details: `${currentNumberOfHandles} unidade(s)`});
+    }
+
 
     const resultItems: CalculationResultItem[] = [
-      { label: 'Pedra', value: currentStoneCost, details: `${totalStoneArea.toFixed(2)}m²` },
-      { label: `Acabamento ${finishName}`, value: currentFinishCost, details: `${perimeter.toFixed(2)}m lineares` },
-      { label: 'Total', value: totalCost, isTotal: true },
+      { label: 'Pedra', value: currentStoneCost, details: `${totalStoneArea.toFixed(2)}m² (R$ ${currentStonePriceVal.toFixed(2)}/m²)` },
     ];
+
+    if (finishPricePerMeter > 0 || finishTypeValue === 'none') {
+         resultItems.push({ label: `Acabamento ${finishName}`, value: currentFinishCost, details: `${perimeter.toFixed(2)}m lineares (R$ ${finishPricePerMeter.toFixed(2)}/m)` });
+    }
+
+    if (handlesCost > 0) {
+      resultItems.push({ label: 'Puxadores', value: handlesCost, details: `${currentNumberOfHandles} unidade(s) (R$ ${HANDLE_PRICE.toFixed(2)}/unid.)` });
+    }
+    
+    resultItems.push({ label: 'Total', value: totalCost, isTotal: true });
     
     setResults({ items: resultItems, summary: summaryItems });
   };
@@ -86,7 +105,7 @@ const TombstoneForm: FC = () => {
   return (
     <div className="space-y-8 fade-in-animation">
       <div className="grid md:grid-cols-2 gap-8">
-        {/* Left Column: Dimensions */}
+        {/* Left Column: Dimensions & Configuration */}
         <div className="space-y-6">
           <Card>
             <CardHeader>
@@ -132,6 +151,15 @@ const TombstoneForm: FC = () => {
                   </SelectContent>
                 </Select>
               </div>
+              <NumberInputStepper
+                id="tumulo-handles"
+                label="Número de Puxadores (Opcional)"
+                unit="unid."
+                value={numberOfHandles}
+                onValueChange={(val) => {setNumberOfHandles(val); setResults(null);}}
+                min={0}
+                step={1}
+              />
             </CardContent>
           </Card>
         </div>
@@ -168,3 +196,4 @@ const TombstoneForm: FC = () => {
 };
 
 export default TombstoneForm;
+
