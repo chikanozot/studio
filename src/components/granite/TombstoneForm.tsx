@@ -27,7 +27,11 @@ const finishTypes: FinishTypeOption[] = [
 const HANDLE_PRICE = 100;
 const VELEIRO_PRICE = 250;
 const VASO_PRICE = 250;
-const CARNEIRA_PRICE = 1200; // New constant for Carneira price
+const CARNEIRA_PRICE = 1200;
+
+const BASE_TOMB_LENGTH_CM = 260;
+const BASE_TOMB_WIDTH_CM = 130;
+const MIN_PAVING_AREA_M2_FOR_STANDARD_SIZE = 2;
 
 const TombstoneForm: FC = () => {
   const [length, setLength] = useState<number | null>(null);
@@ -38,7 +42,7 @@ const TombstoneForm: FC = () => {
   const [numberOfHandles, setNumberOfHandles] = useState<number | null>(null);
   const [hasVeleiro, setHasVeleiro] = useState<boolean>(false);
   const [hasVaso, setHasVaso] = useState<boolean>(false);
-  const [numberOfCarneiras, setNumberOfCarneiras] = useState<number | null>(null); // New state for carneiras
+  const [numberOfCarneiras, setNumberOfCarneiras] = useState<number | null>(null);
   const [results, setResults] = useState<CalculationResults | null>(null);
 
   const handleCalculation = () => {
@@ -47,7 +51,7 @@ const TombstoneForm: FC = () => {
     const currentHeight = height === null ? 0 : height;
     const currentStonePriceVal = stonePrice === null ? 0 : stonePrice;
     const currentNumberOfHandles = numberOfHandles === null ? 0 : numberOfHandles;
-    const currentNumberOfCarneiras = numberOfCarneiras === null ? 0 : numberOfCarneiras; // Get current number of carneiras
+    const currentNumberOfCarneiras = numberOfCarneiras === null ? 0 : numberOfCarneiras;
 
     if (currentLength <= 0 || currentWidth <= 0 || currentHeight <= 0) {
       alert('Informe todas as medidas do túmulo para continuar.');
@@ -64,31 +68,52 @@ const TombstoneForm: FC = () => {
     const widthM = currentWidth / 100;
     const heightM = currentHeight / 100;
 
+    // Tomb structure stone area
     const topArea = lengthM * widthM;
     const frontBackArea = 2 * lengthM * heightM;
     const sideArea = 2 * widthM * heightM;
-    const totalStoneArea = topArea + frontBackArea + sideArea;
-    const currentStoneCost = totalStoneArea * currentStonePriceVal;
+    const totalTombStructureStoneArea = topArea + frontBackArea + sideArea;
+    const tombStructureStoneCost = totalTombStructureStoneArea * currentStonePriceVal;
+
+    // Paving stone area calculation
+    let pavingStoneAreaM2 = 0;
+    if (currentLength > 0 && currentWidth > 0) {
+      const actualTombFootprintM2 = (currentLength / 100) * (currentWidth / 100);
+      const referenceTombFootprintM2 = (BASE_TOMB_LENGTH_CM / 100) * (BASE_TOMB_WIDTH_CM / 100); // 3.38 m²
+
+      if (currentLength <= BASE_TOMB_LENGTH_CM && currentWidth <= BASE_TOMB_WIDTH_CM) {
+        pavingStoneAreaM2 = MIN_PAVING_AREA_M2_FOR_STANDARD_SIZE;
+      } else {
+        if (referenceTombFootprintM2 > 0) {
+             pavingStoneAreaM2 = (actualTombFootprintM2 / referenceTombFootprintM2) * MIN_PAVING_AREA_M2_FOR_STANDARD_SIZE;
+        } else {
+            pavingStoneAreaM2 = MIN_PAVING_AREA_M2_FOR_STANDARD_SIZE; // Fallback
+        }
+      }
+    }
+    const pavingStoneCost = pavingStoneAreaM2 * currentStonePriceVal;
+
 
     const selectedFinish = finishTypes.find(f => f.value === finishTypeValue);
     const finishPricePerMeter = selectedFinish ? selectedFinish.pricePerMeter : 0;
     const finishName = selectedFinish ? selectedFinish.label : 'N/A';
     
-    const perimeter = 2 * (lengthM + widthM); // Perimeter of the top for finishing edges
+    const perimeter = 2 * (lengthM + widthM);
     const currentFinishCost = perimeter * finishPricePerMeter;
 
     const handlesCost = currentNumberOfHandles * HANDLE_PRICE;
     const veleiroCost = hasVeleiro ? VELEIRO_PRICE : 0;
     const vasoCost = hasVaso ? VASO_PRICE : 0;
-    const carneirasCost = currentNumberOfCarneiras * CARNEIRA_PRICE; // Calculate carneiras cost
+    const carneirasCost = currentNumberOfCarneiras * CARNEIRA_PRICE;
 
-    const totalCost = currentStoneCost + currentFinishCost + handlesCost + veleiroCost + vasoCost + carneirasCost; // Add carneirasCost to total
+    const totalCost = tombStructureStoneCost + pavingStoneCost + currentFinishCost + handlesCost + veleiroCost + vasoCost + carneirasCost;
 
     const summaryItems: CalculationResultItem[] = [
-        { label: "Medidas", details: `${currentLength}cm (C) x ${currentWidth}cm (L) x ${currentHeight}cm (A)`},
-        { label: "Área da Pedra", 
-          details: `Topo: ${topArea.toFixed(2)}m², Frente/Trás: ${frontBackArea.toFixed(2)}m², Lados: ${sideArea.toFixed(2)}m². Total: ${totalStoneArea.toFixed(2)}m²`
+        { label: "Medidas Túmulo", details: `${currentLength}cm (C) x ${currentWidth}cm (L) x ${currentHeight}cm (A)`},
+        { label: "Área da Pedra (Túmulo)", 
+          details: `Topo: ${topArea.toFixed(2)}m², Frente/Trás: ${frontBackArea.toFixed(2)}m², Lados: ${sideArea.toFixed(2)}m². Total Estrutura: ${totalTombStructureStoneArea.toFixed(2)}m²`
         },
+        { label: "Calçada", details: `Área da pedra para calçada: ${pavingStoneAreaM2.toFixed(2)}m². Regra: até ${BASE_TOMB_LENGTH_CM}x${BASE_TOMB_WIDTH_CM}cm = ${MIN_PAVING_AREA_M2_FOR_STANDARD_SIZE}m², maior aumenta proporcionalmente.`},
         { label: "Acabamento", details: `${finishName} (Perímetro: ${perimeter.toFixed(2)}m)`}
     ];
     if (currentNumberOfHandles > 0) {
@@ -100,14 +125,18 @@ const TombstoneForm: FC = () => {
     if (hasVaso) {
         summaryItems.push({ label: "Vaso", details: `Sim (R$ ${VASO_PRICE.toFixed(2)})`});
     }
-    if (currentNumberOfCarneiras > 0) { // Add carneiras to summary
+    if (currentNumberOfCarneiras > 0) {
         summaryItems.push({ label: "Carneiras", details: `${currentNumberOfCarneiras} unidade(s)`});
     }
 
 
     const resultItems: CalculationResultItem[] = [
-      { label: 'Pedra', value: currentStoneCost, details: `${totalStoneArea.toFixed(2)}m² (R$ ${currentStonePriceVal.toFixed(2)}/m²)` },
+      { label: 'Pedra (Estrutura Túmulo)', value: tombStructureStoneCost, details: `${totalTombStructureStoneArea.toFixed(2)}m² (R$ ${currentStonePriceVal.toFixed(2)}/m²)` },
     ];
+
+    if (pavingStoneAreaM2 > 0) {
+        resultItems.push({ label: 'Pedra (Calçada)', value: pavingStoneCost, details: `${pavingStoneAreaM2.toFixed(2)}m² (R$ ${currentStonePriceVal.toFixed(2)}/m²)` });
+    }
 
     if (finishPricePerMeter > 0 || finishTypeValue === 'none') {
          resultItems.push({ label: `Acabamento ${finishName}`, value: currentFinishCost, details: `${perimeter.toFixed(2)}m lineares (R$ ${finishPricePerMeter.toFixed(2)}/m)` });
@@ -122,7 +151,7 @@ const TombstoneForm: FC = () => {
     if (vasoCost > 0) {
       resultItems.push({ label: 'Vaso', value: vasoCost, details: `R$ ${VASO_PRICE.toFixed(2)}` });
     }
-    if (carneirasCost > 0) { // Add carneiras cost to results
+    if (carneirasCost > 0) {
       resultItems.push({ label: 'Carneiras', value: carneirasCost, details: `${currentNumberOfCarneiras} unidade(s) (R$ ${CARNEIRA_PRICE.toFixed(2)}/unid.)` });
     }
     
@@ -189,7 +218,7 @@ const TombstoneForm: FC = () => {
                 min={0}
                 step={1}
               />
-              <NumberInputStepper // New input for Carneiras
+              <NumberInputStepper
                 id="tumulo-carneiras"
                 label="Número de Carneiras (Opcional)"
                 unit="unid."
@@ -262,3 +291,6 @@ const TombstoneForm: FC = () => {
 };
 
 export default TombstoneForm;
+
+
+    
