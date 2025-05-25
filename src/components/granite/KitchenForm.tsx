@@ -13,6 +13,7 @@ import { Plus, Trash2, Calculator, Archive } from "lucide-react";
 import CountertopItem from './CountertopItem';
 import ResultsDisplay from '../shared/ResultsDisplay';
 import NumberInputStepper from '../shared/NumberInputStepper';
+import { Checkbox } from '@/components/ui/checkbox'; // Added Checkbox
 
 const cubaOptions: Omit<Cuba, 'id'>[] = [
   { type: 'pequena', name: 'Pequena', price: 230 },
@@ -22,6 +23,7 @@ const cubaOptions: Omit<Cuba, 'id'>[] = [
 
 const generateId = () => crypto.randomUUID();
 const WALL_SUPPORT_PRICE = 70;
+const REBAIXO_ITALIANO_PRICE_PER_METER = 1200;
 
 const KitchenForm: FC = () => {
   const [countertops, setCountertops] = useState<Countertop[]>([]);
@@ -29,10 +31,13 @@ const KitchenForm: FC = () => {
 
   const [stonePrice, setStonePrice] = useState<number | null>(null);
   const [skirtHeight, setSkirtHeight] = useState<number | null>(null);
-  const [finishPriceOption, setFinishPriceOption] = useState<string>("80"); 
+  const [finishPriceOption, setFinishPriceOption] = useState<string>("80");
   const [customFinishPrice, setCustomFinishPrice] = useState<number | null>(null);
   const [topMoldingWidth, setTopMoldingWidth] = useState<number | null>(null);
   const [bottomMoldingWidth, setBottomMoldingWidth] = useState<number | null>(null);
+
+  const [hasRebaixoItaliano, setHasRebaixoItaliano] = useState<boolean>(false);
+  const [rebaixoItalianoLength, setRebaixoItalianoLength] = useState<number | null>(null);
 
   const [results, setResults] = useState<CalculationResults | null>(null);
 
@@ -97,6 +102,7 @@ const KitchenForm: FC = () => {
     const currentSkirtHeight = skirtHeight === null ? 0 : skirtHeight;
     const currentTopMoldingWidth = topMoldingWidth === null ? 0 : topMoldingWidth;
     const currentBottomMoldingWidth = bottomMoldingWidth === null ? 0 : bottomMoldingWidth;
+    const currentRebaixoLength = rebaixoItalianoLength === null ? 0 : rebaixoItalianoLength;
 
     let totalStoneLinearLength = 0;
     countertops.forEach(c => {
@@ -128,33 +134,37 @@ const KitchenForm: FC = () => {
         const cWidth = c.width === null ? 0 : c.width / 100;
         const allSides: ('top' | 'bottom' | 'left' | 'right')[] = ['top', 'bottom', 'left', 'right'];
         allSides.forEach(side => {
-          if (!c.finishedSides.includes(side)) {
+          if (!c.finishedSides.includes(side)) { // Rodapé superior em lados SEM acabamento
             if (side === 'top' || side === 'bottom') {
-              topMoldingLengthForCalc += cLength;
+              if (cLength > 0) topMoldingLengthForCalc += cLength;
             } else {
-              topMoldingLengthForCalc += cWidth;
+              if (cWidth > 0) topMoldingLengthForCalc += cWidth;
             }
           }
         });
       });
-      const topMoldingArea = topMoldingLengthForCalc * (currentTopMoldingWidth / 100);
-      moldingCost += topMoldingArea * currentStonePrice;
+      if (topMoldingLengthForCalc > 0) {
+        const topMoldingArea = topMoldingLengthForCalc * (currentTopMoldingWidth / 100);
+        moldingCost += topMoldingArea * currentStonePrice;
+      }
     }
 
     if (currentBottomMoldingWidth > 0) {
       countertops.forEach(c => {
         const cLength = c.length === null ? 0 : c.length / 100;
         const cWidth = c.width === null ? 0 : c.width / 100;
-        c.finishedSides.forEach(side => {
+        c.finishedSides.forEach(side => { // Rodapé inferior em lados COM acabamento
           if (side === 'top' || side === 'bottom') {
-            bottomMoldingLengthForCalc += cLength;
+            if (cLength > 0) bottomMoldingLengthForCalc += cLength;
           } else {
-            bottomMoldingLengthForCalc += cWidth;
+            if (cWidth > 0) bottomMoldingLengthForCalc += cWidth;
           }
         });
       });
-      const bottomMoldingArea = bottomMoldingLengthForCalc * (currentBottomMoldingWidth / 100);
-      moldingCost += (bottomMoldingArea * currentStonePrice) * bottomMoldingSurcharge;
+      if (bottomMoldingLengthForCalc > 0) {
+        const bottomMoldingArea = bottomMoldingLengthForCalc * (currentBottomMoldingWidth / 100);
+        moldingCost += (bottomMoldingArea * currentStonePrice) * bottomMoldingSurcharge;
+      }
     }
 
     const cubasCost = cubas.reduce((acc, cuba) => acc + cuba.price, 0);
@@ -168,7 +178,12 @@ const KitchenForm: FC = () => {
       }
     });
 
-    const totalCost = stoneCost + finishCost + skirtCost + moldingCost + cubasCost + wallSupportCost;
+    let rebaixoItalianoCost = 0;
+    if (hasRebaixoItaliano && currentRebaixoLength > 0) {
+      rebaixoItalianoCost = currentRebaixoLength * REBAIXO_ITALIANO_PRICE_PER_METER;
+    }
+
+    const totalCost = stoneCost + finishCost + skirtCost + moldingCost + cubasCost + wallSupportCost + rebaixoItalianoCost;
 
     const resultItems: CalculationResultItem[] = [];
     resultItems.push({ label: 'Pedra', value: stoneCost, details: `${totalStoneLinearLength.toFixed(2)}m linear` });
@@ -198,6 +213,10 @@ const KitchenForm: FC = () => {
       resultItems.push({ label: 'Suportes de Parede', value: wallSupportCost, details: `${supportedCountertopsCount} balcão(ões)` });
     }
 
+    if (rebaixoItalianoCost > 0) {
+      resultItems.push({ label: 'Rebaixo Italiano', value: rebaixoItalianoCost, details: `${currentRebaixoLength.toFixed(2)}m linear (R$ ${REBAIXO_ITALIANO_PRICE_PER_METER.toFixed(2)}/m)` });
+    }
+
     resultItems.push({ label: 'Total', value: totalCost, isTotal: true });
 
     const summaryItems: CalculationResultItem[] = countertops.map((c, i) => {
@@ -213,6 +232,10 @@ const KitchenForm: FC = () => {
         details: `${cLength}cm x ${cWidth}cm. Acabamento: ${finishDetails}. ${supportDetail}`,
       }
     });
+    if (hasRebaixoItaliano && currentRebaixoLength > 0) {
+      summaryItems.push({ label: 'Rebaixo Italiano', details: `${currentRebaixoLength.toFixed(2)}m linear` });
+    }
+
 
     setResults({ items: resultItems, summary: summaryItems });
   };
@@ -290,7 +313,7 @@ const KitchenForm: FC = () => {
               />
                <div>
                 <Label htmlFor="finish-price-option" className="text-sm font-medium">Valor do acabamento por metro linear</Label>
-                <Select value={finishPriceOption} onValueChange={(value) => {setFinishPriceOption(value); setResults(null);}}>
+                <Select value={finishPriceOption} onValueChange={(value) => {setFinishPriceOption(value); setCustomFinishPrice(null); setResults(null);}}>
                   <SelectTrigger id="finish-price-option" className="w-full mt-1">
                     <SelectValue placeholder="Selecione o valor" />
                   </SelectTrigger>
@@ -339,6 +362,35 @@ const KitchenForm: FC = () => {
                 onValueChange={(val) => {setBottomMoldingWidth(val); setResults(null);}}
                 min={0}
               />
+              <div className="pt-2 space-y-2">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="rebaixo-italiano-checkbox"
+                    checked={hasRebaixoItaliano}
+                    onCheckedChange={(checked) => {
+                      setHasRebaixoItaliano(!!checked);
+                      if (!checked) {
+                        setRebaixoItalianoLength(null);
+                      }
+                      setResults(null);
+                    }}
+                  />
+                  <Label htmlFor="rebaixo-italiano-checkbox" className="text-sm font-medium text-foreground">
+                    Incluir Rebaixo Italiano (R$ {REBAIXO_ITALIANO_PRICE_PER_METER.toFixed(2)}/m linear)
+                  </Label>
+                </div>
+                {hasRebaixoItaliano && (
+                  <NumberInputStepper
+                    id="rebaixo-italiano-length"
+                    label="Comprimento do Rebaixo Italiano"
+                    unit="m"
+                    value={rebaixoItalianoLength}
+                    onValueChange={(val) => {setRebaixoItalianoLength(val); setResults(null);}}
+                    min={0.01}
+                    step={0.01}
+                  />
+                )}
+              </div>
             </CardContent>
           </Card>
           <Button onClick={handleCalculation} size="lg" className="w-full bg-accent text-accent-foreground hover:bg-accent/90">
@@ -355,3 +407,4 @@ const KitchenForm: FC = () => {
 };
 
 export default KitchenForm;
+
