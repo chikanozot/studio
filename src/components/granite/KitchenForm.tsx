@@ -5,7 +5,6 @@ import type { FC } from 'react';
 import { useState, useEffect, useMemo } from 'react';
 import type { Countertop, Cuba, CalculationResults, CalculationResultItem } from '@/types';
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,6 +13,7 @@ import CountertopItem from './CountertopItem';
 import ResultsDisplay from '../shared/ResultsDisplay';
 import NumberInputStepper from '../shared/NumberInputStepper';
 import { Checkbox } from '@/components/ui/checkbox';
+import { stoneOptions } from '@/data/stoneOptions';
 
 const cubaOptions: Omit<Cuba, 'id'>[] = [
   { type: 'pequena', name: 'Pequena', price: 230 },
@@ -29,7 +29,9 @@ const KitchenForm: FC = () => {
   const [countertops, setCountertops] = useState<Countertop[]>([]);
   const [cubas, setCubas] = useState<Cuba[]>([]);
 
-  const [stonePrice, setStonePrice] = useState<number | null>(null);
+  const [selectedStoneValue, setSelectedStoneValue] = useState<string>("");
+  const [customStonePriceInput, setCustomStonePriceInput] = useState<number | null>(null);
+
   const [skirtHeight, setSkirtHeight] = useState<number | null>(null);
   const [finishPriceOption, setFinishPriceOption] = useState<string>("80");
   const [customFinishPrice, setCustomFinishPrice] = useState<number | null>(null);
@@ -48,6 +50,13 @@ const KitchenForm: FC = () => {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const actualStonePrice = useMemo(() => {
+    if (selectedStoneValue === 'other') {
+      return customStonePriceInput === null ? 0 : customStonePriceInput;
+    }
+    return selectedStoneValue ? parseFloat(selectedStoneValue) : 0;
+  }, [selectedStoneValue, customStonePriceInput]);
 
   const derivedFinishPrice = useMemo(() => {
     if (finishPriceOption === 'other') {
@@ -89,8 +98,7 @@ const KitchenForm: FC = () => {
       alert('Adicione pelo menos um balcão para calcular o orçamento.');
       return;
     }
-    const currentStonePrice = stonePrice === null ? 0 : stonePrice;
-    if (currentStonePrice <= 0) {
+    if (actualStonePrice <= 0) {
       alert('Informe o valor da pedra para continuar.');
       return;
     }
@@ -110,7 +118,7 @@ const KitchenForm: FC = () => {
     countertops.forEach(c => {
       totalStoneLinearLength += (c.length === null ? 0 : c.length / 100);
     });
-    const stoneCost = totalStoneLinearLength * currentStonePrice;
+    const stoneCost = totalStoneLinearLength * actualStonePrice;
 
     let totalFinishLength = 0;
     countertops.forEach(c => {
@@ -123,7 +131,7 @@ const KitchenForm: FC = () => {
     });
     const finishCost = totalFinishLength * finishPriceValue;
 
-    const skirtCost = currentSkirtHeight > 0 ? (currentSkirtHeight / 100) * totalFinishLength * currentStonePrice : 0;
+    const skirtCost = currentSkirtHeight > 0 ? (currentSkirtHeight / 100) * totalFinishLength * actualStonePrice : 0;
 
     let moldingCost = 0;
     let topMoldingLengthForCalc = 0;
@@ -147,7 +155,7 @@ const KitchenForm: FC = () => {
       });
       if (topMoldingLengthForCalc > 0) {
         const topMoldingArea = topMoldingLengthForCalc * (currentTopMoldingWidth / 100);
-        moldingCost += topMoldingArea * currentStonePrice;
+        moldingCost += topMoldingArea * actualStonePrice;
       }
     }
 
@@ -167,7 +175,7 @@ const KitchenForm: FC = () => {
       });
       if (bottomMoldingLengthForCalc > 0) {
         baseBottomMoldingArea = bottomMoldingLengthForCalc * (currentBottomMoldingWidth / 100);
-        baseBottomMoldingCost = (baseBottomMoldingArea * currentStonePrice) * bottomMoldingSurcharge;
+        baseBottomMoldingCost = (baseBottomMoldingArea * actualStonePrice) * bottomMoldingSurcharge;
         moldingCost += baseBottomMoldingCost;
       }
     }
@@ -176,7 +184,7 @@ const KitchenForm: FC = () => {
     let additionalBottomMoldingArea = 0;
     if (currentBottomMoldingWidth > 0 && currentAdditionalBottomMoldingLength > 0) {
       additionalBottomMoldingArea = (currentAdditionalBottomMoldingLength / 100) * (currentBottomMoldingWidth / 100);
-      additionalBottomMoldingCost = (additionalBottomMoldingArea * currentStonePrice) * bottomMoldingSurcharge;
+      additionalBottomMoldingCost = (additionalBottomMoldingArea * actualStonePrice) * bottomMoldingSurcharge;
       moldingCost += additionalBottomMoldingCost;
     }
 
@@ -199,7 +207,7 @@ const KitchenForm: FC = () => {
     const totalCost = stoneCost + finishCost + skirtCost + moldingCost + cubasCost + wallSupportCost + rebaixoItalianoCost;
 
     const resultItems: CalculationResultItem[] = [];
-    resultItems.push({ label: 'Pedra', value: stoneCost, details: `${totalStoneLinearLength.toFixed(2)}m linear` });
+    resultItems.push({ label: 'Pedra', value: stoneCost, details: `${totalStoneLinearLength.toFixed(2)}m linear (R$ ${actualStonePrice.toFixed(2)}/m)` });
     if (totalFinishLength > 0) {
         resultItems.push({ label: 'Acabamento', value: finishCost, details: `${totalFinishLength.toFixed(2)}m linear (R$ ${finishPriceValue.toFixed(2)}/m)` });
     }
@@ -252,6 +260,8 @@ const KitchenForm: FC = () => {
     if (hasRebaixoItaliano && currentRebaixoLength > 0) {
       summaryItems.push({ label: 'Rebaixo Italiano', details: `${currentRebaixoLength.toFixed(2)}m linear` });
     }
+    const selectedStoneName = stoneOptions.find(opt => String(opt.price) === selectedStoneValue)?.name || (selectedStoneValue === 'other' ? 'Personalizado' : 'Não selecionada');
+    summaryItems.unshift({label: "Pedra Selecionada", details: `${selectedStoneName} (R$ ${actualStonePrice.toFixed(2)}/m linear)`})
 
 
     setResults({ items: resultItems, summary: summaryItems });
@@ -319,15 +329,45 @@ const KitchenForm: FC = () => {
               <CardTitle className="text-xl text-primary">Configurações Gerais</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-               <NumberInputStepper
-                id="stone-price"
-                label="Valor da pedra (R$/metro linear)"
-                unit="R$"
-                value={stonePrice}
-                onValueChange={(val) => {setStonePrice(val); setResults(null);}}
-                min={0}
-                step={0.01}
-              />
+              <div>
+                <Label htmlFor="stone-select" className="text-sm font-medium">Valor da pedra (R$/metro linear)</Label>
+                <Select
+                  value={selectedStoneValue}
+                  onValueChange={(value) => {
+                    setSelectedStoneValue(value);
+                    setResults(null);
+                    if (value !== 'other') {
+                      setCustomStonePriceInput(null);
+                    }
+                  }}
+                >
+                  <SelectTrigger id="stone-select" className="w-full mt-1">
+                    <SelectValue placeholder="Selecione a pedra" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {stoneOptions.map(option => (
+                      <SelectItem key={option.name} value={String(option.price)}>
+                        {option.name} – R$ {option.price.toFixed(2)}
+                      </SelectItem>
+                    ))}
+                    <SelectItem value="other">Outro</SelectItem>
+                  </SelectContent>
+                </Select>
+                {selectedStoneValue === 'other' && (
+                  <div className="mt-2">
+                    <NumberInputStepper
+                      id="custom-stone-price"
+                      label="Valor personalizado da pedra"
+                      unit="R$"
+                      value={customStonePriceInput}
+                      onValueChange={(val) => { setCustomStonePriceInput(val); setResults(null); }}
+                      min={0}
+                      step={0.01}
+                    />
+                  </div>
+                )}
+              </div>
+
                <div>
                 <Label htmlFor="finish-price-option" className="text-sm font-medium">Valor do acabamento por metro linear</Label>
                 <Select value={finishPriceOption} onValueChange={(value) => {setFinishPriceOption(value); setCustomFinishPrice(null); setResults(null);}}>

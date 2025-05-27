@@ -2,7 +2,7 @@
 "use client";
 
 import type { FC } from 'react';
-import { useState }from 'react';
+import { useState, useMemo }from 'react';
 import type { SoleiraItem, CalculationResults, CalculationResultItem } from '@/types';
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -11,13 +11,25 @@ import { Plus, Calculator } from "lucide-react";
 import ThresholdItem from './ThresholdItem';
 import ResultsDisplay from '../shared/ResultsDisplay';
 import NumberInputStepper from '../shared/NumberInputStepper';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { stoneOptions } from '@/data/stoneOptions';
 
 const generateId = () => crypto.randomUUID();
 
 const ThresholdForm: FC = () => {
   const [items, setItems] = useState<SoleiraItem[]>([]);
-  const [stonePrice, setStonePrice] = useState<number | null>(null); // R$/m² for stone
+  
+  const [selectedStoneValue, setSelectedStoneValue] = useState<string>("");
+  const [customStonePriceInput, setCustomStonePriceInput] = useState<number | null>(null);
+  
   const [results, setResults] = useState<CalculationResults | null>(null);
+
+  const actualStonePrice = useMemo(() => {
+    if (selectedStoneValue === 'other') {
+      return customStonePriceInput === null ? 0 : customStonePriceInput;
+    }
+    return selectedStoneValue ? parseFloat(selectedStoneValue) : 0;
+  }, [selectedStoneValue, customStonePriceInput]);
 
   const addItem = (type: 'soleira' | 'pingadeira') => {
     setItems(prev => [...prev, { id: generateId(), type, length: null, width: null, finishType: 'none' }]);
@@ -39,8 +51,7 @@ const ThresholdForm: FC = () => {
       alert('Adicione pelo menos um item para calcular o orçamento.');
       return;
     }
-    const currentStonePrice = stonePrice === null ? 0 : stonePrice;
-    if (currentStonePrice <= 0) {
+    if (actualStonePrice <= 0) {
       alert('Informe o valor da pedra (R$/m²) para continuar.');
       return;
     }
@@ -53,20 +64,18 @@ const ThresholdForm: FC = () => {
       const itemLength = item.length === null ? 0 : item.length;
       const itemWidth = item.width === null ? 0 : item.width;
 
-      // Stone calculation
       const effectiveWidthForStone = item.type === 'pingadeira' ? itemWidth + 2 : itemWidth;
-      const stoneAreaForItem = (itemLength / 100) * (effectiveWidthForStone / 100); // in m²
+      const stoneAreaForItem = (itemLength / 100) * (effectiveWidthForStone / 100); 
       totalStoneArea += stoneAreaForItem;
       
-      // Finish calculation
       let itemFinishLinearMeters = 0;
       if (item.finishType === 'one_side') {
-        itemFinishLinearMeters = itemLength / 100; // meters
+        itemFinishLinearMeters = itemLength / 100;
       } else if (item.finishType === 'two_sides') {
-        itemFinishLinearMeters = (itemLength / 100) * 2; // meters
+        itemFinishLinearMeters = (itemLength / 100) * 2;
       }
 
-      const finishPricePerLinearMeter = item.type === 'soleira' ? 8 : 10; // R$8/m for soleira, R$10/m for pingadeira
+      const finishPricePerLinearMeter = item.type === 'soleira' ? 8 : 10;
       const currentItemFinishCost = itemFinishLinearMeters * finishPricePerLinearMeter;
       totalFinishCostItems += currentItemFinishCost;
 
@@ -83,11 +92,11 @@ const ThresholdForm: FC = () => {
       });
     });
 
-    const totalStoneMaterialCost = totalStoneArea * currentStonePrice;
+    const totalStoneMaterialCost = totalStoneArea * actualStonePrice;
     const finalTotalCost = totalStoneMaterialCost + totalFinishCostItems;
 
     const resultItems: CalculationResultItem[] = [
-      { label: 'Pedra (Material)', value: totalStoneMaterialCost, details: `${totalStoneArea.toFixed(3)} m² (R$ ${currentStonePrice}/m²)` },
+      { label: 'Pedra (Material)', value: totalStoneMaterialCost, details: `${totalStoneArea.toFixed(3)} m² (R$ ${actualStonePrice.toFixed(2)}/m²)` },
     ];
 
     if (totalFinishCostItems > 0) {
@@ -96,6 +105,9 @@ const ThresholdForm: FC = () => {
     
     resultItems.push({ label: 'Valor Total', value: finalTotalCost, isTotal: true });
     
+    const selectedStoneName = stoneOptions.find(opt => String(opt.price) === selectedStoneValue)?.name || (selectedStoneValue === 'other' ? 'Personalizado' : 'Não selecionada');
+    summaryItems.unshift({label: "Pedra Selecionada", details: `${selectedStoneName} (R$ ${actualStonePrice.toFixed(2)}/m²)`})
+
     setResults({ items: resultItems, summary: summaryItems });
   };
 
@@ -140,15 +152,44 @@ const ThresholdForm: FC = () => {
               <CardTitle className="text-xl text-primary">Configurações Gerais</CardTitle>
             </CardHeader>
             <CardContent>
-              <NumberInputStepper
-                  id="soleira-stone-price"
-                  label="Valor da pedra (R$/metro quadrado)"
-                  unit="R$"
-                  value={stonePrice}
-                  onValueChange={(val) => {setStonePrice(val); setResults(null);}}
-                  min={0}
-                  step={0.01}
-                />
+              <div>
+                <Label htmlFor="soleira-stone-select" className="text-sm font-medium">Valor da pedra (R$/metro quadrado)</Label>
+                <Select
+                  value={selectedStoneValue}
+                  onValueChange={(value) => {
+                    setSelectedStoneValue(value);
+                    setResults(null);
+                    if (value !== 'other') {
+                      setCustomStonePriceInput(null);
+                    }
+                  }}
+                >
+                  <SelectTrigger id="soleira-stone-select" className="w-full mt-1">
+                    <SelectValue placeholder="Selecione a pedra" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {stoneOptions.map(option => (
+                      <SelectItem key={option.name} value={String(option.price)}>
+                        {option.name} – R$ {option.price.toFixed(2)}
+                      </SelectItem>
+                    ))}
+                    <SelectItem value="other">Outro</SelectItem>
+                  </SelectContent>
+                </Select>
+                {selectedStoneValue === 'other' && (
+                  <div className="mt-2">
+                    <NumberInputStepper
+                      id="soleira-custom-stone-price"
+                      label="Valor personalizado da pedra"
+                      unit="R$"
+                      value={customStonePriceInput}
+                      onValueChange={(val) => { setCustomStonePriceInput(val); setResults(null); }}
+                      min={0}
+                      step={0.01}
+                    />
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
           <Button onClick={handleCalculation} size="lg" className="w-full bg-accent text-accent-foreground hover:bg-accent/90">

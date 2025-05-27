@@ -2,7 +2,7 @@
 "use client";
 
 import type { FC } from 'react';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import type { CalculationResults, CalculationResultItem } from '@/types';
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -12,6 +12,7 @@ import { Calculator } from "lucide-react";
 import ResultsDisplay from '../shared/ResultsDisplay';
 import NumberInputStepper from '../shared/NumberInputStepper';
 import { Checkbox } from '@/components/ui/checkbox';
+import { stoneOptions } from '@/data/stoneOptions';
 
 interface FinishTypeOption {
   value: string;
@@ -44,7 +45,10 @@ const TombstoneForm: FC = () => {
   const [width, setWidth] = useState<number | null>(null);
   const [height, setHeight] = useState<number | null>(null);
   const [finishTypeValue, setFinishTypeValue] = useState<string>('meia_cana_abonado');
-  const [stonePrice, setStonePrice] = useState<number | null>(null);
+  
+  const [selectedStoneValue, setSelectedStoneValue] = useState<string>("");
+  const [customStonePriceInput, setCustomStonePriceInput] = useState<number | null>(null);
+
   const [numberOfHandles, setNumberOfHandles] = useState<number | null>(null);
   const [hasVeleiro, setHasVeleiro] = useState<boolean>(false);
   const [hasVaso, setHasVaso] = useState<boolean>(false);
@@ -52,11 +56,17 @@ const TombstoneForm: FC = () => {
   const [tombType, setTombType] = useState<TombStructureType>('none');
   const [results, setResults] = useState<CalculationResults | null>(null);
 
+  const actualStonePrice = useMemo(() => {
+    if (selectedStoneValue === 'other') {
+      return customStonePriceInput === null ? 0 : customStonePriceInput;
+    }
+    return selectedStoneValue ? parseFloat(selectedStoneValue) : 0;
+  }, [selectedStoneValue, customStonePriceInput]);
+
   const handleCalculation = () => {
     const currentLength = length === null ? 0 : length;
     const currentWidth = width === null ? 0 : width;
     const currentHeight = height === null ? 0 : height;
-    const currentStonePriceVal = stonePrice === null ? 0 : stonePrice;
     const currentNumberOfHandles = numberOfHandles === null ? 0 : numberOfHandles;
     const currentNumberOfCarneiras = numberOfCarneiras === null ? 0 : numberOfCarneiras;
 
@@ -65,7 +75,7 @@ const TombstoneForm: FC = () => {
       setResults(null);
       return;
     }
-    if (currentStonePriceVal <= 0) {
+    if (actualStonePrice <= 0) {
       alert('Informe o valor da pedra para continuar.');
       setResults(null);
       return;
@@ -75,14 +85,11 @@ const TombstoneForm: FC = () => {
     const widthM = currentWidth / 100;
     const heightM = currentHeight / 100;
 
-    // Tomb structure stone area
     const topArea = lengthM * widthM;
     const frontBackArea = 2 * lengthM * heightM;
     const sideArea = 2 * widthM * heightM;
     let totalTombStructureStoneArea = topArea + frontBackArea + sideArea;
     
-
-    // Paving stone area calculation
     let pavingStoneAreaM2 = 0;
     if (currentLength > 0 && currentWidth > 0) {
       const actualTombFootprintM2 = (currentLength / 100) * (currentWidth / 100);
@@ -98,15 +105,14 @@ const TombstoneForm: FC = () => {
         }
       }
     }
-    const pavingStoneCost = pavingStoneAreaM2 * currentStonePriceVal;
+    const pavingStoneCost = pavingStoneAreaM2 * actualStonePrice;
 
-    // Cabeceira stone cost
     let cabeceiraStoneCost = 0;
     if (tombType === 'cabeceira') {
-      totalTombStructureStoneArea += 1; // Add 1m² for cabeceira
-      cabeceiraStoneCost = 1 * currentStonePriceVal;
+      totalTombStructureStoneArea += 1; 
+      cabeceiraStoneCost = 1 * actualStonePrice;
     }
-    const tombStructureStoneCost = totalTombStructureStoneArea * currentStonePriceVal;
+    const tombStructureStoneCost = totalTombStructureStoneArea * actualStonePrice;
 
 
     const selectedFinish = finishTypes.find(f => f.value === finishTypeValue);
@@ -121,31 +127,33 @@ const TombstoneForm: FC = () => {
     const vasoCost = hasVaso ? VASO_PRICE : 0;
     const carneirasCost = currentNumberOfCarneiras * CARNEIRA_PRICE;
 
-    // Capela cost
     let capelaTotalCost = 0;
     let capelaGlassCost = 0;
     let capelaStructureCost = 0;
     if (tombType === 'capela') {
       capelaGlassCost = CAPELA_GLASS_PRICE;
-      if (currentStonePriceVal <= CAPELA_STONE_PRICE_THRESHOLD_FOR_BASE) {
+      if (actualStonePrice <= CAPELA_STONE_PRICE_THRESHOLD_FOR_BASE) {
         capelaStructureCost = CAPELA_STRUCTURE_BASE_PRICE_STONE_UP_TO_400;
       } else {
-        capelaStructureCost = (currentStonePriceVal / CAPELA_STONE_PRICE_THRESHOLD_FOR_BASE) * CAPELA_STRUCTURE_BASE_PRICE_STONE_UP_TO_400;
+        capelaStructureCost = (actualStonePrice / CAPELA_STONE_PRICE_THRESHOLD_FOR_BASE) * CAPELA_STRUCTURE_BASE_PRICE_STONE_UP_TO_400;
       }
       capelaTotalCost = capelaGlassCost + capelaStructureCost;
     }
 
     const totalCost = tombStructureStoneCost + pavingStoneCost + currentFinishCost + handlesCost + veleiroCost + vasoCost + carneirasCost + capelaTotalCost;
+    
+    const selectedStoneName = stoneOptions.find(opt => String(opt.price) === selectedStoneValue)?.name || (selectedStoneValue === 'other' ? 'Personalizado' : 'Não selecionada');
 
     const summaryItems: CalculationResultItem[] = [
+        { label: "Pedra Selecionada", details: `${selectedStoneName} (R$ ${actualStonePrice.toFixed(2)}/m²)`},
         { label: "Medidas Túmulo", details: `${currentLength}cm (C) x ${currentWidth}cm (L) x ${currentHeight}cm (A)`},
     ];
     if (tombType === 'cabeceira') {
         summaryItems.push({ label: "Estrutura Adicional", details: `Cabeceira (1m² de pedra adicional para a estrutura)`});
     } else if (tombType === 'capela') {
-        const capelaStructureDetails = currentStonePriceVal <= CAPELA_STONE_PRICE_THRESHOLD_FOR_BASE
+        const capelaStructureDetails = actualStonePrice <= CAPELA_STONE_PRICE_THRESHOLD_FOR_BASE
         ? `Estrutura com pedra até R$ ${CAPELA_STONE_PRICE_THRESHOLD_FOR_BASE.toFixed(2)}/m²`
-        : `Estrutura proporcional com pedra a R$ ${currentStonePriceVal.toFixed(2)}/m²`;
+        : `Estrutura proporcional com pedra a R$ ${actualStonePrice.toFixed(2)}/m²`;
         summaryItems.push({ label: "Estrutura Adicional", details: `Capela. Vidro: R$ ${capelaGlassCost.toFixed(2)}. Estrutura: R$ ${capelaStructureCost.toFixed(2)} (${capelaStructureDetails})`});
     }
     
@@ -172,11 +180,11 @@ const TombstoneForm: FC = () => {
 
 
     const resultItems: CalculationResultItem[] = [
-      { label: 'Pedra (Estrutura Túmulo)', value: tombStructureStoneCost, details: `${totalTombStructureStoneArea.toFixed(2)}m² (R$ ${currentStonePriceVal.toFixed(2)}/m²)${tombType === 'cabeceira' ? ' (inclui 1m² da cabeceira)' : ''}` },
+      { label: 'Pedra (Estrutura Túmulo)', value: tombStructureStoneCost, details: `${totalTombStructureStoneArea.toFixed(2)}m² (R$ ${actualStonePrice.toFixed(2)}/m²)${tombType === 'cabeceira' ? ' (inclui 1m² da cabeceira)' : ''}` },
     ];
 
     if (pavingStoneAreaM2 > 0) {
-        resultItems.push({ label: 'Pedra (Calçada)', value: pavingStoneCost, details: `${pavingStoneAreaM2.toFixed(2)}m² (R$ ${currentStonePriceVal.toFixed(2)}/m²)` });
+        resultItems.push({ label: 'Pedra (Calçada)', value: pavingStoneCost, details: `${pavingStoneAreaM2.toFixed(2)}m² (R$ ${actualStonePrice.toFixed(2)}/m²)` });
     }
 
     if (finishPricePerMeter > 0 || finishTypeValue === 'none') {
@@ -197,9 +205,9 @@ const TombstoneForm: FC = () => {
     }
 
     if (tombType === 'capela') {
-      const capelaStructureDetails = currentStonePriceVal <= CAPELA_STONE_PRICE_THRESHOLD_FOR_BASE
+      const capelaStructureDetails = actualStonePrice <= CAPELA_STONE_PRICE_THRESHOLD_FOR_BASE
         ? `Estrutura com pedra até R$ ${CAPELA_STONE_PRICE_THRESHOLD_FOR_BASE.toFixed(2)}/m²`
-        : `Estrutura proporcional com pedra a R$ ${currentStonePriceVal.toFixed(2)}/m²`;
+        : `Estrutura proporcional com pedra a R$ ${actualStonePrice.toFixed(2)}/m²`;
       resultItems.push({ label: 'Capela (Estrutura)', value: capelaStructureCost, details: capelaStructureDetails });
       resultItems.push({ label: 'Capela (Vidro)', value: capelaGlassCost, details: 'Valor fixo' });
     }
@@ -328,15 +336,44 @@ const TombstoneForm: FC = () => {
               <CardTitle className="text-xl text-primary">Configurações Gerais</CardTitle>
             </CardHeader>
             <CardContent>
-              <NumberInputStepper
-                  id="tumulo-stone-price"
-                  label="Valor da pedra (R$/metro quadrado)"
-                  unit="R$"
-                  value={stonePrice}
-                  onValueChange={(val) => {setStonePrice(val); setResults(null);}}
-                  step="0.01"
-                  min={0}
-                />
+               <div>
+                <Label htmlFor="tumulo-stone-select" className="text-sm font-medium">Valor da pedra (R$/metro quadrado)</Label>
+                <Select
+                  value={selectedStoneValue}
+                  onValueChange={(value) => {
+                    setSelectedStoneValue(value);
+                    setResults(null);
+                    if (value !== 'other') {
+                      setCustomStonePriceInput(null);
+                    }
+                  }}
+                >
+                  <SelectTrigger id="tumulo-stone-select" className="w-full mt-1">
+                    <SelectValue placeholder="Selecione a pedra" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {stoneOptions.map(option => (
+                      <SelectItem key={option.name} value={String(option.price)}>
+                        {option.name} – R$ {option.price.toFixed(2)}
+                      </SelectItem>
+                    ))}
+                    <SelectItem value="other">Outro</SelectItem>
+                  </SelectContent>
+                </Select>
+                {selectedStoneValue === 'other' && (
+                  <div className="mt-2">
+                    <NumberInputStepper
+                      id="tumulo-custom-stone-price"
+                      label="Valor personalizado da pedra"
+                      unit="R$"
+                      value={customStonePriceInput}
+                      onValueChange={(val) => { setCustomStonePriceInput(val); setResults(null); }}
+                      min={0}
+                      step={0.01}
+                    />
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
           <Button onClick={handleCalculation} size="lg" className="w-full bg-accent text-accent-foreground hover:bg-accent/90">
