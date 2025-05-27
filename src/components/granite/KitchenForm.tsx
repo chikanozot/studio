@@ -13,7 +13,7 @@ import { Plus, Trash2, Calculator, Archive } from "lucide-react";
 import CountertopItem from './CountertopItem';
 import ResultsDisplay from '../shared/ResultsDisplay';
 import NumberInputStepper from '../shared/NumberInputStepper';
-import { Checkbox } from '@/components/ui/checkbox'; // Added Checkbox
+import { Checkbox } from '@/components/ui/checkbox';
 
 const cubaOptions: Omit<Cuba, 'id'>[] = [
   { type: 'pequena', name: 'Pequena', price: 230 },
@@ -35,6 +35,7 @@ const KitchenForm: FC = () => {
   const [customFinishPrice, setCustomFinishPrice] = useState<number | null>(null);
   const [topMoldingWidth, setTopMoldingWidth] = useState<number | null>(null);
   const [bottomMoldingWidth, setBottomMoldingWidth] = useState<number | null>(null);
+  const [additionalBottomMoldingLength, setAdditionalBottomMoldingLength] = useState<number | null>(null);
 
   const [hasRebaixoItaliano, setHasRebaixoItaliano] = useState<boolean>(false);
   const [rebaixoItalianoLength, setRebaixoItalianoLength] = useState<number | null>(null);
@@ -103,6 +104,7 @@ const KitchenForm: FC = () => {
     const currentTopMoldingWidth = topMoldingWidth === null ? 0 : topMoldingWidth;
     const currentBottomMoldingWidth = bottomMoldingWidth === null ? 0 : bottomMoldingWidth;
     const currentRebaixoLength = rebaixoItalianoLength === null ? 0 : rebaixoItalianoLength;
+    const currentAdditionalBottomMoldingLength = additionalBottomMoldingLength === null ? 0 : additionalBottomMoldingLength;
 
     let totalStoneLinearLength = 0;
     countertops.forEach(c => {
@@ -149,6 +151,8 @@ const KitchenForm: FC = () => {
       }
     }
 
+    let baseBottomMoldingArea = 0;
+    let baseBottomMoldingCost = 0;
     if (currentBottomMoldingWidth > 0) {
       countertops.forEach(c => {
         const cLength = c.length === null ? 0 : c.length / 100;
@@ -162,9 +166,18 @@ const KitchenForm: FC = () => {
         });
       });
       if (bottomMoldingLengthForCalc > 0) {
-        const bottomMoldingArea = bottomMoldingLengthForCalc * (currentBottomMoldingWidth / 100);
-        moldingCost += (bottomMoldingArea * currentStonePrice) * bottomMoldingSurcharge;
+        baseBottomMoldingArea = bottomMoldingLengthForCalc * (currentBottomMoldingWidth / 100);
+        baseBottomMoldingCost = (baseBottomMoldingArea * currentStonePrice) * bottomMoldingSurcharge;
+        moldingCost += baseBottomMoldingCost;
       }
+    }
+
+    let additionalBottomMoldingCost = 0;
+    let additionalBottomMoldingArea = 0;
+    if (currentBottomMoldingWidth > 0 && currentAdditionalBottomMoldingLength > 0) {
+      additionalBottomMoldingArea = (currentAdditionalBottomMoldingLength / 100) * (currentBottomMoldingWidth / 100);
+      additionalBottomMoldingCost = (additionalBottomMoldingArea * currentStonePrice) * bottomMoldingSurcharge;
+      moldingCost += additionalBottomMoldingCost;
     }
 
     const cubasCost = cubas.reduce((acc, cuba) => acc + cuba.price, 0);
@@ -199,8 +212,12 @@ const KitchenForm: FC = () => {
       moldingDetailsParts.push(`Superior ${currentTopMoldingWidth}cm (${topMoldingLengthForCalc.toFixed(2)}m s/ acab.)`);
     }
     if (currentBottomMoldingWidth > 0 && bottomMoldingLengthForCalc > 0) {
-      moldingDetailsParts.push(`Inferior ${currentBottomMoldingWidth}cm (${bottomMoldingLengthForCalc.toFixed(2)}m c/ acab., acréscimo 30%)`);
+      moldingDetailsParts.push(`Inferior ${currentBottomMoldingWidth}cm (${bottomMoldingLengthForCalc.toFixed(2)}m c/ acab., área ${baseBottomMoldingArea.toFixed(3)}m², custo R$ ${baseBottomMoldingCost.toFixed(2)}, acréscimo 30%)`);
     }
+    if (currentBottomMoldingWidth > 0 && currentAdditionalBottomMoldingLength > 0 && additionalBottomMoldingArea > 0) {
+        moldingDetailsParts.push(`Adicional Rodapé Inferior: ${currentAdditionalBottomMoldingLength}cm comp. (largura ${currentBottomMoldingWidth}cm, área ${additionalBottomMoldingArea.toFixed(3)}m², custo R$ ${additionalBottomMoldingCost.toFixed(2)}, acréscimo 30%)`);
+    }
+
     if (moldingDetailsParts.length > 0) {
       resultItems.push({ label: 'Rodapés', value: moldingCost, details: moldingDetailsParts.join('; ') });
     }
@@ -362,14 +379,25 @@ const KitchenForm: FC = () => {
                 onValueChange={(val) => {setBottomMoldingWidth(val); setResults(null);}}
                 min={0}
               />
+              {bottomMoldingWidth !== null && bottomMoldingWidth > 0 && (
+                <NumberInputStepper
+                  id="additional-bottom-molding-length"
+                  label="Comprimento Adicional Rodapé Embaixo do Móvel"
+                  unit="cm"
+                  value={additionalBottomMoldingLength}
+                  onValueChange={(val) => {setAdditionalBottomMoldingLength(val); setResults(null);}}
+                  min={0}
+                />
+              )}
               <div className="pt-2 space-y-2">
                 <div className="flex items-center space-x-2">
                   <Checkbox
                     id="rebaixo-italiano-checkbox"
                     checked={hasRebaixoItaliano}
                     onCheckedChange={(checked) => {
-                      setHasRebaixoItaliano(!!checked);
-                      if (!checked) {
+                      const isChecked = typeof checked === 'boolean' ? checked : false;
+                      setHasRebaixoItaliano(isChecked);
+                      if (!isChecked) {
                         setRebaixoItalianoLength(null);
                       }
                       setResults(null);
@@ -407,4 +435,3 @@ const KitchenForm: FC = () => {
 };
 
 export default KitchenForm;
-
